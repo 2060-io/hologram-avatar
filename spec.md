@@ -586,17 +586,41 @@ Shared code (VS-Agent client, session store interface) can be in a `packages/sha
 
 All services must be runnable locally with minimal setup.
 
-### Local Prerequisites
+### Deployment Topology
+
+Each VS-Agent requires its own **ngrok tunnel** for a public DIDComm endpoint. Since ngrok free supports only one tunnel per machine, each VS-Agent runs on a **separate machine** (or VM/container host), each with its own ngrok account.
+
+```text
+┌──────────────────────────────────────┐   ┌──────────────────────────────────────┐
+│  Machine A                           │   │  Machine B                           │
+│                                      │   │                                      │
+│  Issuer VS-Agent  :3000 (admin)      │   │  Verifier VS-Agent  :3000 (admin)    │
+│                   :3001 (public)     │   │                     :3001 (public)   │
+│  ngrok tunnel A → :3001              │   │  ngrok tunnel B →   :3001            │
+│                                      │   │                                      │
+│  Issuer Chatbot   :4000              │   │  Web Verifier        :4001            │
+│                                      │   │  Chatbot Verifier    :4002            │
+└──────────────────────────────────────┘   └──────────────────────────────────────┘
+```
+
+- **Machine A** runs the Issuer VS-Agent + Issuer Chatbot (same machine, chatbot connects via `localhost:3000`)
+- **Machine B** runs the Verifier VS-Agent + Web Verifier + Chatbot Verifier (same machine, services connect via `localhost:3000`)
+- Each machine uses standard ports (3000/3001) — no port conflicts
+- The `02-setup-verifier.sh` script on Machine B reaches the Issuer VS-Agent on Machine A via its **ngrok public URL** (configured as `ISSUER_ADMIN_URL`)
+
+### Local Prerequisites (per machine)
 
 - **Docker** with `linux/amd64` platform support
-- **ngrok** — authenticated (for Issuer VS-Agent public URL)
+- **ngrok** — authenticated (one free account per machine)
 - **veranad** — Verana blockchain CLI
 - **Node.js 20+** and **npm**
 - **curl**, **jq**
 
 ### Local Startup Sequence
 
-#### A. Issuer VS-Agent (existing scripts)
+#### Machine A — Issuer
+
+##### A1. Issuer VS-Agent (existing scripts)
 
 ```bash
 source vs/config.env
@@ -606,12 +630,11 @@ source vs-demo-ids.env
 ./scripts/vs-demo/03-create-trust-registry.sh        # ENABLE_ANONCREDS=true
 ```
 
-Result: Issuer VS-Agent running on `localhost:3000` (admin) / `localhost:3001` (public).
+Result: Issuer VS-Agent running on `localhost:3000` (admin) / `localhost:3001` (public), reachable via ngrok URL.
 
-#### B. Issuer Chatbot
+##### A2. Issuer Chatbot
 
 ```bash
-# Prerequisite: Issuer VS-Agent running (step A)
 ./scripts/issuer-chatbot/start.sh
 # Internally:
 #   1. npm install (if needed)
@@ -621,35 +644,32 @@ Result: Issuer VS-Agent running on `localhost:3000` (admin) / `localhost:3001` (
 
 Result: Chatbot webhook server on `localhost:4000`, connected to the Issuer VS-Agent.
 
-#### C. Verifier VS-Agent (new script — Pattern 2 child service)
+#### Machine B — Verifier
+
+##### B1. Verifier VS-Agent (Pattern 2 child service)
 
 ```bash
-# Prerequisite: Issuer VS-Agent running and configured (step A)
+source vs/config.env
 
-# Deploy a second VS-Agent for verifier services
-./scripts/verifier/01-deploy-verifier-vs.sh
-# Internally:
-#   1. Starts a second VS-Agent Docker container on ports 3002 (admin) / 3003 (public)
-#   2. Opens a second ngrok tunnel for the verifier agent's public DID
-#   3. Outputs verifier-ids.env with VERIFIER_DID, VERIFIER_ADMIN_URL, etc.
+# Deploy Verifier VS-Agent (uses standard ports 3000/3001 on this machine)
+./scripts/verifier/01-deploy-verifier-vs.sh   # Docker + ngrok
 source verifier-ids.env
 
-# Obtain Service credential from Issuer VS-Agent and link as VP
-./scripts/verifier/02-setup-verifier.sh
+# Obtain Service credential from Issuer VS-Agent (Machine A) and link as VP
+ISSUER_ADMIN_URL=<machine-a-ngrok-url> ./scripts/verifier/02-setup-verifier.sh
 # Internally:
-#   1. Calls Issuer VS-Agent admin API to issue a Service credential
-#      to the verifier agent's DID (issue_remote_and_link)
+#   1. Calls Issuer VS-Agent admin API (via ISSUER_ADMIN_URL) to issue a
+#      Service credential to the verifier agent's DID (issue_remote_and_link)
 #   2. Verifier agent receives credential via DIDComm
 #   3. Links the Service credential as a VP in the verifier's DID Document
 #   4. Verifier is now a recognized child service of the Organization
 ```
 
-Result: Verifier VS-Agent running on `localhost:3002` (admin) / `localhost:3003` (public), with a Service credential linked-vp in its DID Document.
+Result: Verifier VS-Agent running on `localhost:3000` (admin) / `localhost:3001` (public), with a Service credential linked-vp in its DID Document.
 
-#### D. Web Verifier
+##### B2. Web Verifier
 
 ```bash
-# Prerequisite: Verifier VS-Agent running (step C)
 ./scripts/web-verifier/start.sh
 # Internally:
 #   1. npm install (if needed)
@@ -659,10 +679,9 @@ Result: Verifier VS-Agent running on `localhost:3002` (admin) / `localhost:3003`
 
 Result: Web verifier at `http://localhost:4001` — open in browser to see QR code.
 
-#### E. Chatbot Verifier
+##### B3. Chatbot Verifier
 
 ```bash
-# Prerequisite: Verifier VS-Agent running (step C)
 ./scripts/verifier-chatbot/start.sh
 # Internally:
 #   1. npm install (if needed)
@@ -672,15 +691,15 @@ Result: Web verifier at `http://localhost:4001` — open in browser to see QR co
 
 Result: Verifier chatbot webhook server on `localhost:4002`, connected to the Verifier VS-Agent.
 
-#### Summary of Local Ports
+#### Summary of Local Ports (per machine)
 
-| Service | Admin Port | Public Port | App Port |
-|---------|-----------|-------------|----------|
-| Issuer VS-Agent | 3000 | 3001 | — |
-| Issuer Chatbot | — | — | 4000 |
-| Verifier VS-Agent | 3002 | 3003 | — |
-| Web Verifier | — | — | 4001 |
-| Chatbot Verifier | — | — | 4002 |
+| Machine | Service | Admin Port | Public Port | App Port |
+|---------|---------|-----------|-------------|----------|
+| A | Issuer VS-Agent | 3000 | 3001 | — |
+| A | Issuer Chatbot | — | — | 4000 |
+| B | Verifier VS-Agent | 3000 | 3001 | — |
+| B | Web Verifier | — | — | 4001 |
+| B | Chatbot Verifier | — | — | 4002 |
 
 ### Local Docker Compose (optional convenience)
 
