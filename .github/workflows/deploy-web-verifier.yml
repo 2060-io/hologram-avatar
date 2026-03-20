@@ -132,25 +132,60 @@ jobs:
             --wait --timeout 300s
           echo "Verifier VS-Agent deployed as $VERIFIER_AGENT_RELEASE"
 
-      - name: Deploy Web Verifier backend via Helm
+      - name: Deploy Web Verifier backend
         if: inputs.step == 'deploy' || inputs.step == 'all'
         run: |
-          helm upgrade --install "$VERIFIER_RELEASE" oci://registry-1.docker.io/bitnamicharts/node \
-            --namespace "$NAMESPACE" --create-namespace \
-            --set image.registry=ghcr.io \
-            --set image.repository="${{ github.repository }}/web-verifier" \
-            --set image.tag="${{ github.sha }}" \
-            --set containerPort="${VERIFIER_PORT:-4001}" \
-            --set extraEnvVars[0].name=VS_AGENT_ADMIN_URL \
-            --set extraEnvVars[0].value="http://${VERIFIER_AGENT_RELEASE}:3000" \
-            --set extraEnvVars[1].name=VERIFIER_PORT \
-            --set extraEnvVars[1].value="${VERIFIER_PORT:-4001}" \
-            --set extraEnvVars[2].name=SERVICE_NAME \
-            --set extraEnvVars[2].value="${SERVICE_NAME}" \
-            --set extraEnvVars[3].name=CUSTOM_SCHEMA_BASE_ID \
-            --set extraEnvVars[3].value="${CUSTOM_SCHEMA_BASE_ID:-example}" \
-            --wait --timeout 300s
-          echo "Web Verifier deployed as $VERIFIER_RELEASE"
+          IMAGE="ghcr.io/${{ github.repository }}/web-verifier:${{ github.sha }}"
+          PORT="${VERIFIER_PORT:-4001}"
+
+          cat <<EOF | kubectl apply -f -
+          apiVersion: apps/v1
+          kind: Deployment
+          metadata:
+            name: ${VERIFIER_RELEASE}
+            namespace: ${NAMESPACE}
+            labels:
+              app: ${VERIFIER_RELEASE}
+          spec:
+            replicas: 1
+            selector:
+              matchLabels:
+                app: ${VERIFIER_RELEASE}
+            template:
+              metadata:
+                labels:
+                  app: ${VERIFIER_RELEASE}
+              spec:
+                containers:
+                  - name: web-verifier
+                    image: ${IMAGE}
+                    ports:
+                      - containerPort: ${PORT}
+                    env:
+                      - name: VS_AGENT_ADMIN_URL
+                        value: "http://${VERIFIER_AGENT_RELEASE}:3000"
+                      - name: VERIFIER_PORT
+                        value: "${PORT}"
+                      - name: SERVICE_NAME
+                        value: "${SERVICE_NAME}"
+                      - name: CUSTOM_SCHEMA_BASE_ID
+                        value: "${CUSTOM_SCHEMA_BASE_ID:-example}"
+          ---
+          apiVersion: v1
+          kind: Service
+          metadata:
+            name: ${VERIFIER_RELEASE}
+            namespace: ${NAMESPACE}
+          spec:
+            selector:
+              app: ${VERIFIER_RELEASE}
+            ports:
+              - port: ${PORT}
+                targetPort: ${PORT}
+          EOF
+
+          kubectl rollout status deployment/"${VERIFIER_RELEASE}" -n "$NAMESPACE" --timeout=300s
+          echo "Web Verifier deployed as ${VERIFIER_RELEASE}"
 
       # -------------------------------------------------------------------
       # GET-ECS-CREDENTIALS: Obtain Service credential for verifier agent

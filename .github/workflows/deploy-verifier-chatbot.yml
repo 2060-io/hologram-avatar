@@ -131,27 +131,62 @@ jobs:
             --wait --timeout 300s
           echo "Verifier VS-Agent deployed as $VERIFIER_AGENT_RELEASE"
 
-      - name: Deploy Verifier Chatbot via Helm
+      - name: Deploy Verifier Chatbot
         if: inputs.step == 'deploy' || inputs.step == 'all'
         run: |
-          helm upgrade --install "$CHATBOT_RELEASE" oci://registry-1.docker.io/bitnamicharts/node \
-            --namespace "$NAMESPACE" --create-namespace \
-            --set image.registry=ghcr.io \
-            --set image.repository="${{ github.repository }}/verifier-chatbot" \
-            --set image.tag="${{ github.sha }}" \
-            --set containerPort="${CHATBOT_PORT:-4002}" \
-            --set extraEnvVars[0].name=VS_AGENT_ADMIN_URL \
-            --set extraEnvVars[0].value="http://${VERIFIER_AGENT_RELEASE}:3000" \
-            --set extraEnvVars[1].name=CHATBOT_PORT \
-            --set extraEnvVars[1].value="${CHATBOT_PORT:-4002}" \
-            --set extraEnvVars[2].name=DATABASE_URL \
-            --set extraEnvVars[2].value="${DATABASE_URL:-sqlite:./data/sessions.db}" \
-            --set extraEnvVars[3].name=SERVICE_NAME \
-            --set extraEnvVars[3].value="${SERVICE_NAME}" \
-            --set extraEnvVars[4].name=CUSTOM_SCHEMA_BASE_ID \
-            --set extraEnvVars[4].value="${CUSTOM_SCHEMA_BASE_ID:-example}" \
-            --wait --timeout 300s
-          echo "Verifier Chatbot deployed as $CHATBOT_RELEASE"
+          IMAGE="ghcr.io/${{ github.repository }}/verifier-chatbot:${{ github.sha }}"
+          PORT="${CHATBOT_PORT:-4002}"
+
+          cat <<EOF | kubectl apply -f -
+          apiVersion: apps/v1
+          kind: Deployment
+          metadata:
+            name: ${CHATBOT_RELEASE}
+            namespace: ${NAMESPACE}
+            labels:
+              app: ${CHATBOT_RELEASE}
+          spec:
+            replicas: 1
+            selector:
+              matchLabels:
+                app: ${CHATBOT_RELEASE}
+            template:
+              metadata:
+                labels:
+                  app: ${CHATBOT_RELEASE}
+              spec:
+                containers:
+                  - name: verifier-chatbot
+                    image: ${IMAGE}
+                    ports:
+                      - containerPort: ${PORT}
+                    env:
+                      - name: VS_AGENT_ADMIN_URL
+                        value: "http://${VERIFIER_AGENT_RELEASE}:3000"
+                      - name: CHATBOT_PORT
+                        value: "${PORT}"
+                      - name: DATABASE_URL
+                        value: "${DATABASE_URL:-sqlite:./data/sessions.db}"
+                      - name: SERVICE_NAME
+                        value: "${SERVICE_NAME}"
+                      - name: CUSTOM_SCHEMA_BASE_ID
+                        value: "${CUSTOM_SCHEMA_BASE_ID:-example}"
+          ---
+          apiVersion: v1
+          kind: Service
+          metadata:
+            name: ${CHATBOT_RELEASE}
+            namespace: ${NAMESPACE}
+          spec:
+            selector:
+              app: ${CHATBOT_RELEASE}
+            ports:
+              - port: ${PORT}
+                targetPort: ${PORT}
+          EOF
+
+          kubectl rollout status deployment/"${CHATBOT_RELEASE}" -n "$NAMESPACE" --timeout=300s
+          echo "Verifier Chatbot deployed as ${CHATBOT_RELEASE}"
 
       # -------------------------------------------------------------------
       # GET-ECS-CREDENTIALS: Obtain Service credential for verifier agent

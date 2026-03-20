@@ -369,31 +369,64 @@ jobs:
           cache-from: type=gha
           cache-to: type=gha,mode=max
 
-      - name: Deploy Issuer Chatbot via Helm
+      - name: Deploy Issuer Chatbot
         if: inputs.step == 'deploy-chatbot' || inputs.step == 'all'
         run: |
           NAMESPACE="${CHART_NAMESPACE}"
-          RELEASE="issuer-chatbot-${VS_NAME}"
+          APP_NAME="issuer-chatbot-${VS_NAME}"
+          IMAGE="ghcr.io/${{ github.repository }}/issuer-chatbot:${{ github.sha }}"
+          PORT="${CHATBOT_PORT:-4000}"
 
-          helm upgrade --install "$RELEASE" oci://registry-1.docker.io/bitnamicharts/node \
-            --namespace "$NAMESPACE" --create-namespace \
-            --set image.registry=ghcr.io \
-            --set image.repository="${{ github.repository }}/issuer-chatbot" \
-            --set image.tag="${{ github.sha }}" \
-            --set containerPort="${CHATBOT_PORT:-4000}" \
-            --set extraEnvVars[0].name=VS_AGENT_ADMIN_URL \
-            --set extraEnvVars[0].value="http://${RELEASE_NAME}:3000" \
-            --set extraEnvVars[1].name=CHATBOT_PORT \
-            --set extraEnvVars[1].value="${CHATBOT_PORT:-4000}" \
-            --set extraEnvVars[2].name=DATABASE_URL \
-            --set extraEnvVars[2].value="${DATABASE_URL:-sqlite:./data/sessions.db}" \
-            --set extraEnvVars[3].name=SERVICE_NAME \
-            --set extraEnvVars[3].value="${SERVICE_NAME}" \
-            --set extraEnvVars[4].name=CUSTOM_SCHEMA_BASE_ID \
-            --set extraEnvVars[4].value="${CUSTOM_SCHEMA_BASE_ID:-example}" \
-            --wait --timeout 300s
+          cat <<EOF | kubectl apply -f -
+          apiVersion: apps/v1
+          kind: Deployment
+          metadata:
+            name: ${APP_NAME}
+            namespace: ${NAMESPACE}
+            labels:
+              app: ${APP_NAME}
+          spec:
+            replicas: 1
+            selector:
+              matchLabels:
+                app: ${APP_NAME}
+            template:
+              metadata:
+                labels:
+                  app: ${APP_NAME}
+              spec:
+                containers:
+                  - name: issuer-chatbot
+                    image: ${IMAGE}
+                    ports:
+                      - containerPort: ${PORT}
+                    env:
+                      - name: VS_AGENT_ADMIN_URL
+                        value: "http://${RELEASE_NAME}:3000"
+                      - name: CHATBOT_PORT
+                        value: "${PORT}"
+                      - name: DATABASE_URL
+                        value: "${DATABASE_URL:-sqlite:./data/sessions.db}"
+                      - name: SERVICE_NAME
+                        value: "${SERVICE_NAME}"
+                      - name: CUSTOM_SCHEMA_BASE_ID
+                        value: "${CUSTOM_SCHEMA_BASE_ID:-example}"
+          ---
+          apiVersion: v1
+          kind: Service
+          metadata:
+            name: ${APP_NAME}
+            namespace: ${NAMESPACE}
+          spec:
+            selector:
+              app: ${APP_NAME}
+            ports:
+              - port: ${PORT}
+                targetPort: ${PORT}
+          EOF
 
-          echo "Issuer Chatbot deployed as $RELEASE in $NAMESPACE"
+          kubectl rollout status deployment/"${APP_NAME}" -n "$NAMESPACE" --timeout=300s
+          echo "Issuer Chatbot deployed as ${APP_NAME} in ${NAMESPACE}"
 
       - name: Configure VS-Agent EVENTS_BASE_URL
         if: inputs.step == 'deploy-chatbot' || inputs.step == 'all'
