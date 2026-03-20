@@ -1,4 +1,4 @@
-name: Deploy VS Demo
+name: Deploy Issuer Chatbot
 
 on:
   workflow_dispatch:
@@ -11,12 +11,13 @@ on:
           - deploy
           - get-ecs-credentials
           - create-trust-registry
+          - deploy-chatbot
           - all
         default: all
 
 jobs:
-  deploy-vs:
-    name: Deploy and configure VS Agent
+  deploy-issuer-chatbot:
+    name: Deploy Issuer VS-Agent and Chatbot
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
@@ -39,9 +40,10 @@ jobs:
 
       - name: Load configuration
         run: |
-          # Source config.env (shell handles quote stripping correctly)
+          # Source config.env and issuer-chatbot.env
           set -a
           source vs/config.env
+          source vs/issuer-chatbot.env
           set +a
           # Write sourced variables to GITHUB_ENV using indirect expansion
           # so that shell-evaluated values (without surrounding quotes) are used
@@ -49,6 +51,10 @@ jobs:
             key="${line%%=*}"
             echo "${key}=${!key}" >> "$GITHUB_ENV"
           done < <(grep -E '^[A-Z_]+=' vs/config.env)
+          while IFS= read -r line; do
+            key="${line%%=*}"
+            echo "${key}=${!key}" >> "$GITHUB_ENV"
+          done < <(grep -E '^[A-Z_]+=' vs/issuer-chatbot.env)
 
       - name: Resolve deployment.yaml placeholders
         run: |
@@ -337,6 +343,72 @@ jobs:
           fi
 
       # -----------------------------------------------------------------------
+      # DEPLOY-CHATBOT: Build and deploy Issuer Chatbot service
+      # -----------------------------------------------------------------------
+      - name: Set up Docker Buildx
+        if: inputs.step == 'deploy-chatbot' || inputs.step == 'all'
+        uses: docker/setup-buildx-action@v3
+
+      - name: Log in to container registry
+        if: inputs.step == 'deploy-chatbot' || inputs.step == 'all'
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build and push Issuer Chatbot image
+        if: inputs.step == 'deploy-chatbot' || inputs.step == 'all'
+        uses: docker/build-push-action@v6
+        with:
+          context: ./issuer-chatbot
+          push: true
+          tags: |
+            ghcr.io/${{ github.repository }}/issuer-chatbot:${{ github.sha }}
+            ghcr.io/${{ github.repository }}/issuer-chatbot:latest
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      - name: Deploy Issuer Chatbot via Helm
+        if: inputs.step == 'deploy-chatbot' || inputs.step == 'all'
+        run: |
+          NAMESPACE="${CHART_NAMESPACE}"
+          RELEASE="issuer-chatbot-${VS_NAME}"
+
+          helm upgrade --install "$RELEASE" oci://registry-1.docker.io/bitnamicharts/node \
+            --namespace "$NAMESPACE" --create-namespace \
+            --set image.registry=ghcr.io \
+            --set image.repository="${{ github.repository }}/issuer-chatbot" \
+            --set image.tag="${{ github.sha }}" \
+            --set containerPort="${CHATBOT_PORT:-4000}" \
+            --set extraEnvVars[0].name=VS_AGENT_ADMIN_URL \
+            --set extraEnvVars[0].value="http://${RELEASE_NAME}:3000" \
+            --set extraEnvVars[1].name=CHATBOT_PORT \
+            --set extraEnvVars[1].value="${CHATBOT_PORT:-4000}" \
+            --set extraEnvVars[2].name=DATABASE_URL \
+            --set extraEnvVars[2].value="${DATABASE_URL:-sqlite:./data/sessions.db}" \
+            --set extraEnvVars[3].name=SERVICE_NAME \
+            --set extraEnvVars[3].value="${SERVICE_NAME}" \
+            --set extraEnvVars[4].name=CUSTOM_SCHEMA_BASE_ID \
+            --set extraEnvVars[4].value="${CUSTOM_SCHEMA_BASE_ID:-example}" \
+            --wait --timeout 300s
+
+          echo "Issuer Chatbot deployed as $RELEASE in $NAMESPACE"
+
+      - name: Configure VS-Agent EVENTS_BASE_URL
+        if: inputs.step == 'deploy-chatbot' || inputs.step == 'all'
+        run: |
+          NAMESPACE="${CHART_NAMESPACE}"
+          CHATBOT_RELEASE="issuer-chatbot-${VS_NAME}"
+          CHATBOT_URL="http://${CHATBOT_RELEASE}:${CHATBOT_PORT:-4000}"
+
+          # Patch the VS-Agent deployment to set EVENTS_BASE_URL
+          kubectl set env deployment/"${RELEASE_NAME}" \
+            -n "$NAMESPACE" \
+            EVENTS_BASE_URL="$CHATBOT_URL"
+          echo "Configured VS-Agent EVENTS_BASE_URL → $CHATBOT_URL"
+
+      # -----------------------------------------------------------------------
       # CLEANUP: Stop port-forward
       # -----------------------------------------------------------------------
       - name: Stop port-forward
@@ -352,8 +424,13 @@ jobs:
       - name: Summary
         if: always()
         run: |
+          echo "## Issuer Chatbot" >> "$GITHUB_STEP_SUMMARY"
+          echo "" >> "$GITHUB_STEP_SUMMARY"
           if [ -n "${INGRESS_HOST:-}" ]; then
-            echo "## VS Agent URL" >> "$GITHUB_STEP_SUMMARY"
-            echo "" >> "$GITHUB_STEP_SUMMARY"
-            echo "https://${INGRESS_HOST}/.well-known/did.json" >> "$GITHUB_STEP_SUMMARY"
+            echo "- **VS Agent:** https://${INGRESS_HOST}/.well-known/did.json" >> "$GITHUB_STEP_SUMMARY"
+          fi
+          echo "- **Network:** ${NETWORK:-unknown}" >> "$GITHUB_STEP_SUMMARY"
+          echo "- **Service:** ${VS_NAME:-unknown}" >> "$GITHUB_STEP_SUMMARY"
+          if [ "${{ inputs.step }}" = "deploy-chatbot" ] || [ "${{ inputs.step }}" = "all" ]; then
+            echo "- **Chatbot Image:** ghcr.io/${{ github.repository }}/issuer-chatbot:${{ github.sha }}" >> "$GITHUB_STEP_SUMMARY"
           fi
