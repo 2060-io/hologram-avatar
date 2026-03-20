@@ -197,21 +197,22 @@ export class Chatbot {
         SessionState.ISSUE
       );
 
-      // Get the connection's DID for the credential subject
-      const agent = await this.client.getAgent();
-      const format = this.config.enableAnoncreds ? "anoncreds" : "jsonld";
-
       console.log(
-        `Issuing ${format} credential to ${connectionId} with claims:`,
+        `Issuing credential to ${connectionId} with claims:`,
         claims
       );
 
-      await this.client.issueCredential({
-        format: format as "jsonld" | "anoncreds",
-        did: connectionId,
-        jsonSchemaCredentialId: this.schema.vtjscId,
-        claims,
-      });
+      // Convert flat claims to array format for the VS-Agent API
+      const claimsArray = Object.entries(claims).map(([name, value]) => ({
+        name,
+        value,
+      }));
+
+      await this.client.issueCredentialOverConnection(
+        connectionId,
+        this.schema.credentialDefinitionId,
+        claimsArray
+      );
 
       this.store.updateSession(connectionId, { state: SessionState.DONE });
 

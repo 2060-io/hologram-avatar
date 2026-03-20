@@ -25,16 +25,25 @@ export interface VtjscListResponse {
   data: VtjscEntry[];
 }
 
-export interface IssueCredentialRequest {
-  format: "jsonld" | "anoncreds";
-  did: string;
-  jsonSchemaCredentialId: string;
-  claims: Record<string, string>;
+export interface CreateCredentialTypeRequest {
+  name: string;
+  version: string;
+  attributes: string[];
+  relatedJsonSchemaCredentialId: string;
+  supportRevocation: boolean;
 }
 
-export interface IssueCredentialResponse {
-  credential: unknown;
+export interface CredentialType {
+  credentialDefinitionId: string;
+  name: string;
+  version: string;
   [key: string]: unknown;
+}
+
+export interface CredentialIssuanceClaim {
+  name: string;
+  value: string;
+  mimeType?: string;
 }
 
 export interface ContextualMenuEntry {
@@ -96,14 +105,31 @@ export class VsAgentClient {
     );
   }
 
-  async issueCredential(
-    params: IssueCredentialRequest
-  ): Promise<IssueCredentialResponse> {
-    return this.request<IssueCredentialResponse>(
+  async getCredentialTypes(): Promise<CredentialType[]> {
+    return this.request<CredentialType[]>("GET", "/v1/credential-types");
+  }
+
+  async createCredentialType(
+    params: CreateCredentialTypeRequest
+  ): Promise<CredentialType> {
+    return this.request<CredentialType>(
       "POST",
-      "/v1/vt/issue-credential",
+      "/v1/credential-types",
       params
     );
+  }
+
+  async issueCredentialOverConnection(
+    connectionId: string,
+    credentialDefinitionId: string,
+    claims: CredentialIssuanceClaim[]
+  ): Promise<void> {
+    await this.request<unknown>("POST", "/v1/message", {
+      type: "credential-issuance",
+      connectionId,
+      credentialDefinitionId,
+      claims,
+    });
   }
 
   async sendMessage(params: SendMessageRequest): Promise<void> {

@@ -40,6 +40,7 @@ export interface SchemaInfo {
   schemaId: string;
   title: string;
   attributes: SchemaAttribute[];
+  credentialDefinitionId: string;
 }
 
 export async function discoverSchema(
@@ -129,10 +130,50 @@ export async function discoverSchema(
       attributes.map((a) => a.name).join(", ")
   );
 
+  // Ensure an anoncreds credential type (definition) exists
+  const credentialDefinitionId = await ensureCredentialType(
+    client,
+    customVtjsc.credential.id,
+    attributes.map((a) => a.name)
+  );
+
   return {
     vtjscId: customVtjsc.credential.id,
     schemaId: customVtjsc.schemaId,
     title,
     attributes,
+    credentialDefinitionId,
   };
+}
+
+async function ensureCredentialType(
+  client: VsAgentClient,
+  vtjscId: string,
+  attributeNames: string[]
+): Promise<string> {
+  // Check if a credential type already exists for this VTJSC
+  const existingTypes = await client.getCredentialTypes();
+  const existing = existingTypes.find(
+    (ct) => ct.relatedJsonSchemaCredentialId === vtjscId
+  );
+  if (existing) {
+    console.log(
+      `Using existing credential type: ${existing.credentialDefinitionId}`
+    );
+    return existing.credentialDefinitionId;
+  }
+
+  // Create a new credential type
+  console.log(`Creating anoncreds credential type for VTJSC ${vtjscId}...`);
+  const created = await client.createCredentialType({
+    name: vtjscId.replace(/[^a-zA-Z0-9-]/g, "-"),
+    version: "1.0",
+    attributes: attributeNames,
+    relatedJsonSchemaCredentialId: vtjscId,
+    supportRevocation: false,
+  });
+  console.log(
+    `Created credential type: ${created.credentialDefinitionId}`
+  );
+  return created.credentialDefinitionId;
 }
