@@ -23,12 +23,12 @@ export async function discoverSchema(
   // Find the custom VTJSC — the one whose id contains the custom schema base ID
   const customVtjsc = vtjscList.data.find(
     (v: VtjscEntry) =>
-      v.id.includes(`/${customSchemaBaseId}/`) ||
-      v.id.endsWith(`/${customSchemaBaseId}`)
+      v.credential.id.includes(`/${customSchemaBaseId}/`) ||
+      v.credential.id.endsWith(`/${customSchemaBaseId}`)
   );
 
   if (!customVtjsc) {
-    const availableIds = vtjscList.data.map((v: VtjscEntry) => v.id);
+    const availableIds = vtjscList.data.map((v: VtjscEntry) => v.credential.id);
     throw new Error(
       `Custom VTJSC not found for base ID "${customSchemaBaseId}". ` +
         `Available VTJSCs: ${JSON.stringify(availableIds)}`
@@ -36,10 +36,14 @@ export async function discoverSchema(
   }
 
   // Fetch the JSON schema to extract attributes for proof request
-  const schemaUrl = customVtjsc.credentialSubject?.jsonSchema;
+  const rawJsonSchema = customVtjsc.credential.credentialSubject?.jsonSchema;
+  const schemaUrl =
+    typeof rawJsonSchema === "object" && rawJsonSchema !== null
+      ? (rawJsonSchema as { $ref: string }).$ref
+      : (rawJsonSchema as string | undefined);
   if (!schemaUrl) {
     throw new Error(
-      `VTJSC ${customVtjsc.id} has no credentialSubject.jsonSchema`
+      `VTJSC ${customVtjsc.credential.id} has no credentialSubject.jsonSchema`
     );
   }
 
@@ -93,7 +97,7 @@ export async function discoverSchema(
   }
 
   return {
-    vtjscId: customVtjsc.id,
+    vtjscId: customVtjsc.credential.id,
     schemaId: customVtjsc.schemaId,
     title,
     attributes,

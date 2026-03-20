@@ -1,18 +1,23 @@
 import { Config } from "./config";
 
 export interface AgentInfo {
-  did: string;
+  publicDid: string;
   label: string;
   [key: string]: unknown;
 }
 
-export interface VtjscEntry {
+export interface VtjscCredential {
   id: string;
-  schemaId: string;
   credentialSubject?: {
-    jsonSchema?: string;
+    jsonSchema?: { $ref: string } | string;
     [key: string]: unknown;
   };
+  [key: string]: unknown;
+}
+
+export interface VtjscEntry {
+  credential: VtjscCredential;
+  schemaId: string;
   [key: string]: unknown;
 }
 

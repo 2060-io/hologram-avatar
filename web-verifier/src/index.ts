@@ -16,7 +16,7 @@ async function main(): Promise<void> {
   // Wait for VS-Agent to be ready
   const client = new VsAgentClient(config);
   const agent = await client.waitForReady();
-  console.log(`VS-Agent ready — DID: ${agent.did}`);
+  console.log(`VS-Agent ready — DID: ${agent.publicDid}`);
 
   // Discover schema attributes
   const schema = await discoverSchema(client, config.customSchemaBaseId);
