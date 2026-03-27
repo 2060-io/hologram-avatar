@@ -315,7 +315,7 @@ jobs:
         run: |
           APP_NAME="issuer-chatbot-app-${VS_NAME}"
           CHATBOT_URL="http://${APP_NAME}:${CHATBOT_PORT:-4000}"
-          kubectl set env deployment/"${RELEASE_NAME}" \
+          kubectl set env statefulset/"${RELEASE_NAME}" \
             -n "$CHART_NAMESPACE" \
             EVENTS_BASE_URL="$CHATBOT_URL"
 
