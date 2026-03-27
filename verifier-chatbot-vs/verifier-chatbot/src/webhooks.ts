@@ -14,6 +14,7 @@ interface MessageReceivedEvent {
     type?: string;
     content?: string;
     text?: string;
+    selectionId?: string;
     menuId?: string;
     selectedOption?: string;
     claims?: Record<string, string>;
@@ -82,11 +83,12 @@ export function createWebhookRouter(chatbot: Chatbot): Router {
       else if (
         msgType === "contextual-menu-select" ||
         msgType === "menu-select" ||
+        msg.selectionId ||
         msg.menuId ||
         msg.selectedOption
       ) {
         const menuId =
-          msg.menuId || msg.selectedOption || msg.content || msg.text || "";
+          msg.selectionId || msg.menuId || msg.selectedOption || msg.content || msg.text || "";
         await chatbot.onMenuSelect(connectionId, menuId);
       }
       // Handle text message
