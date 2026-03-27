@@ -34,7 +34,7 @@ export interface OobInvitationResponse {
 export interface IssueCredentialRequest {
   format: "jsonld" | "anoncreds";
   did: string;
-  jsonSchemaCredentialId: string;
+  credentialDefinitionId: string;
   claims: Record<string, string>;
 }
 
