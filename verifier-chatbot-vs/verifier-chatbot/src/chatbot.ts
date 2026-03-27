@@ -199,7 +199,7 @@ export class Chatbot {
 
       await this.client.sendProofRequest({
         connectionId,
-        proofRequestItems: [
+        requestedProofItems: [
           {
             credentialDefinitionId: this.schema.credentialDefinitionId,
             type: "verifiable-credential",

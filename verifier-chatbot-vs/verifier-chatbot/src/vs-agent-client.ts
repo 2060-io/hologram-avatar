@@ -42,15 +42,16 @@ export interface SendMessageRequest {
   contextualMenu?: ContextualMenu;
 }
 
-export interface ProofRequestItem {
-  credentialDefinitionId?: string;
+export interface RequestedProofItem {
+  id?: string;
   type: string;
-  attributes: string[];
+  credentialDefinitionId?: string;
+  attributes?: string[];
 }
 
 export interface SendProofRequestParams {
   connectionId: string;
-  proofRequestItems: ProofRequestItem[];
+  requestedProofItems: RequestedProofItem[];
   contextualMenu?: ContextualMenu;
 }
 
@@ -115,7 +116,21 @@ export class VsAgentClient {
   }
 
   async sendProofRequest(params: SendProofRequestParams): Promise<void> {
-    await this.request<unknown>("POST", "/v1/message", params);
+    await this.request<unknown>("POST", "/v1/message", {
+      type: "identity-proof-request",
+      connectionId: params.connectionId,
+      requestedProofItems: params.requestedProofItems,
+    });
+
+    if (params.contextualMenu) {
+      await this.request<unknown>("POST", "/v1/message", {
+        type: "contextual-menu-update",
+        connectionId: params.connectionId,
+        title: params.contextualMenu.title,
+        description: params.contextualMenu.description,
+        options: params.contextualMenu.options,
+      });
+    }
   }
 
   async waitForReady(
