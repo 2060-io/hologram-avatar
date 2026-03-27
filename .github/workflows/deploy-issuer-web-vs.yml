@@ -143,27 +143,32 @@ jobs:
           CHILD_DID=$(curl -sf "${CHILD_ADMIN_API}/v1/agent" | jq -r '.publicDid')
           echo "Child DID: $CHILD_DID"
 
-          # Get Service credential from organization-vs
-          SERVICE_VTJSC_OUTPUT=$(discover_ecs_vtjsc "$ECS_TR_PUBLIC_URL" "service")
-          SERVICE_JSC_URL=$(echo "$SERVICE_VTJSC_OUTPUT" | sed -n '1p')
+          # Get Service credential from organization-vs (skip if already linked)
+          CHILD_PUBLIC_URL="https://${INGRESS_HOST}"
+          if has_linked_vp "$CHILD_PUBLIC_URL" "service"; then
+            ok "Service credential already linked — skipping"
+          else
+            SERVICE_VTJSC_OUTPUT=$(discover_ecs_vtjsc "$ECS_TR_PUBLIC_URL" "service")
+            SERVICE_JSC_URL=$(echo "$SERVICE_VTJSC_OUTPUT" | sed -n '1p')
 
-          SERVICE_LOGO_DATA_URI=$(download_logo_data_uri "$SERVICE_LOGO_URL")
+            SERVICE_LOGO_DATA_URI=$(download_logo_data_uri "$SERVICE_LOGO_URL")
 
-          SERVICE_CLAIMS=$(jq -n \
-            --arg id "$CHILD_DID" \
-            --arg name "$SERVICE_NAME" \
-            --arg type "${SERVICE_TYPE:-IssuerService}" \
-            --arg desc "$SERVICE_DESCRIPTION" \
-            --arg logo "$SERVICE_LOGO_DATA_URI" \
-            --argjson age "${SERVICE_MIN_AGE:-0}" \
-            --arg terms "${SERVICE_TERMS:-}" \
-            --arg privacy "${SERVICE_PRIVACY:-}" \
-            '{id: $id, name: $name, type: $type, description: $desc, logo: $logo, minimumAgeRequired: $age, termsAndConditions: $terms, privacyPolicy: $privacy}')
+            SERVICE_CLAIMS=$(jq -n \
+              --arg id "$CHILD_DID" \
+              --arg name "$SERVICE_NAME" \
+              --arg type "${SERVICE_TYPE:-IssuerService}" \
+              --arg desc "$SERVICE_DESCRIPTION" \
+              --arg logo "$SERVICE_LOGO_DATA_URI" \
+              --argjson age "${SERVICE_MIN_AGE:-0}" \
+              --arg terms "${SERVICE_TERMS:-}" \
+              --arg privacy "${SERVICE_PRIVACY:-}" \
+              '{id: $id, name: $name, type: $type, description: $desc, logo: $logo, minimumAgeRequired: $age, termsAndConditions: $terms, privacyPolicy: $privacy}')
 
-          issue_remote_and_link "$ORG_ADMIN_API" "$CHILD_ADMIN_API" "service" "$SERVICE_JSC_URL" "$CHILD_DID" "$SERVICE_CLAIMS"
+            issue_remote_and_link "$ORG_ADMIN_API" "$CHILD_ADMIN_API" "service" "$SERVICE_JSC_URL" "$CHILD_DID" "$SERVICE_CLAIMS"
+          fi
 
           # Discover custom schema from organization-vs DID doc
-          ORG_PUBLIC_URL="https://organization-vs.${VS_NAME}.demos.${NETWORK}.testnet.verana.network"
+          ORG_PUBLIC_URL="https://organization-vs.${VS_NAME}.demos.${NETWORK}.verana.network"
           ORG_DID_DOC=$(curl -sf "${ORG_PUBLIC_URL}/.well-known/did.json")
 
           CUSTOM_VP_URL=$(echo "$ORG_DID_DOC" | jq -r '
