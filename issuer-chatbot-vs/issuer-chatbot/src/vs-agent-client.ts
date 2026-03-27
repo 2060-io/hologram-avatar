@@ -121,13 +121,13 @@ export class VsAgentClient {
 
   async issueCredentialOverConnection(
     connectionId: string,
-    jsonSchemaCredentialId: string,
+    credentialDefinitionId: string,
     claims: CredentialIssuanceClaim[]
   ): Promise<void> {
     await this.request<unknown>("POST", "/v1/message", {
       type: "credential-issuance",
       connectionId,
-      jsonSchemaCredentialId,
+      credentialDefinitionId,
       claims,
     });
   }
