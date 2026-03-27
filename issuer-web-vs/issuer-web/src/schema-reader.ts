@@ -197,7 +197,7 @@ export async function discoverSchema(
   );
 
   // Ensure a local AnonCreds credential type exists on the issuer agent
-  const credentialDefinitionId = await ensureCredentialType(client, vtjscId);
+  const credentialDefinitionId = await ensureCredentialType(client, vtjscId, title);
 
   return {
     vtjscId,
@@ -210,7 +210,8 @@ export async function discoverSchema(
 
 async function ensureCredentialType(
   client: VsAgentClient,
-  vtjscId: string
+  vtjscId: string,
+  name: string
 ): Promise<string> {
   // Check if a credential type already exists for this VTJSC
   const existingTypes = await client.getCredentialTypes();
@@ -227,7 +228,7 @@ async function ensureCredentialType(
   // Create a new credential type
   console.log(`Creating anoncreds credential type for VTJSC ${vtjscId}...`);
   const created = await client.createCredentialType({
-    name: vtjscId.replace(/[^a-zA-Z0-9-]/g, "-"),
+    name,
     version: "1.0",
     relatedJsonSchemaCredentialId: vtjscId,
     supportRevocation: false,

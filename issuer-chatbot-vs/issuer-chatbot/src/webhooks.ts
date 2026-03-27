@@ -10,6 +10,7 @@ interface ConnectionStateEvent {
 interface MessageReceivedEvent {
   timestamp?: string;
   message: {
+    id?: string;
     connectionId: string;
     type?: string;
     content?: string;
@@ -56,8 +57,9 @@ export function createWebhookRouter(chatbot: Chatbot): Router {
       const msg = event.message;
       const connectionId = msg.connectionId;
       const msgType = (msg.type || "").toLowerCase();
+      const messageId = msg.id;
 
-      console.log(`Webhook: message-received — ${connectionId} type=${msgType}`);
+      console.log(`Webhook: message-received — ${connectionId} type=${msgType} id=${messageId}`);
 
       // Ignore system messages (profile auto-disclosure, receipts, etc.)
       if (
@@ -66,6 +68,13 @@ export function createWebhookRouter(chatbot: Chatbot): Router {
       ) {
         res.status(200).json({ ok: true });
         return;
+      }
+
+      // Send received + viewed indicators for all user messages
+      if (messageId && connectionId) {
+        chatbot.sendReceipts(connectionId, messageId).catch((err: unknown) =>
+          console.error("Failed to send receipts:", err)
+        );
       }
 
       if (

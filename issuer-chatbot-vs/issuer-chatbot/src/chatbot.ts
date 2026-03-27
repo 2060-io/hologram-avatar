@@ -21,6 +21,10 @@ export class Chatbot {
     this.config = config;
   }
 
+  async sendReceipts(connectionId: string, messageId: string): Promise<void> {
+    await this.client.sendReceipts(connectionId, messageId);
+  }
+
   private menuTitle(): string {
     return `${this.config.serviceName} Issuer`;
   }
@@ -208,6 +212,17 @@ export class Chatbot {
         value,
       }));
 
+      const didcommPayload = {
+        type: "credential-issuance",
+        connectionId,
+        credentialDefinitionId: this.schema.credentialDefinitionId,
+        claims: claimsArray,
+      };
+      console.log(
+        "DIDComm credential-issuance payload:",
+        JSON.stringify(didcommPayload, null, 2)
+      );
+
       await this.client.issueCredentialOverConnection(
         connectionId,
         this.schema.credentialDefinitionId,
@@ -215,18 +230,6 @@ export class Chatbot {
       );
 
       this.store.updateSession(connectionId, { state: SessionState.DONE });
-
-      const attrSummary = Object.entries(claims)
-        .map(([k, v]) => `  • ${k}: ${v}`)
-        .join("\n");
-
-      await this.sendText(
-        connectionId,
-        `Credential issued successfully!\n\n` +
-          `**${this.schema.title}**\n${attrSummary}\n\n` +
-          `The credential has been sent to your wallet.`,
-        SessionState.DONE
-      );
     } catch (error) {
       console.error(`Failed to issue credential for ${connectionId}:`, error);
       this.store.updateSession(connectionId, {
