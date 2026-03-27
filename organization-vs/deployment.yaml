@@ -7,14 +7,14 @@ chartSource: oci://registry-1.docker.io/veranalabs/vs-agent-chart
 chartVersion: v1.9.1
 
 global:
-  domain: __VS_NAME__.demos.__NETWORK__.testnet.verana.network
+  domain: __VS_NAME__.demos.__NETWORK__.verana.network
 
 name: __VS_NAME__
 replicas: 1
 
 adminPort: 3000
 didcommPort: 3001
-eventsBaseUrl: "https://organization-vs.__VS_NAME__.demos.__NETWORK__.testnet.verana.network"
+eventsBaseUrl: "https://organization-vs.__VS_NAME__.demos.__NETWORK__.verana.network"
 publicDidMethod: "webvh"
 
 resources:
@@ -26,8 +26,8 @@ resources:
     memory: 512Mi
 
 ingress:
-  host: "organization-vs.__VS_NAME__.demos.__NETWORK__.testnet.verana.network"
-  tlsSecret: "organization-vs.__VS_NAME__.demos.__NETWORK__.testnet.verana.network-cert"
+  host: "organization-vs.__VS_NAME__.demos.__NETWORK__.verana.network"
+  tlsSecret: "organization-vs.__VS_NAME__.demos.__NETWORK__.verana.network-cert"
   public:
     enableCors: true
   private:
