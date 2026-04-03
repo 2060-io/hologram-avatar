@@ -128,22 +128,31 @@ export function createWebhookRouter(chatbot: Chatbot): Router {
 function extractClaims(
   msg: MessageReceivedEvent["message"]
 ): Record<string, string> {
+  const raw: Record<string, unknown> = {};
+
   // Try to extract claims from submittedProofItems
   if (msg.submittedProofItems && msg.submittedProofItems.length > 0) {
-    const allClaims: Record<string, string> = {};
     for (const item of msg.submittedProofItems) {
       if (item.claims) {
-        Object.assign(allClaims, item.claims);
+        Object.assign(raw, item.claims);
       }
     }
-    return allClaims;
+  } else if (msg.claims) {
+    // Fallback: try claims directly on message
+    Object.assign(raw, msg.claims);
+  } else {
+    console.warn("No claims found in proof submission message");
+    return {};
   }
 
-  // Fallback: try claims directly on message
-  if (msg.claims) {
-    return msg.claims;
+  // Unwrap object values (e.g. {value: "John"} → "John")
+  const result: Record<string, string> = {};
+  for (const [key, val] of Object.entries(raw)) {
+    if (val && typeof val === "object" && "value" in val) {
+      result[key] = String((val as { value: unknown }).value);
+    } else {
+      result[key] = String(val);
+    }
   }
-
-  console.warn("No claims found in proof submission message");
-  return {};
+  return result;
 }
