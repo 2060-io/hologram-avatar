@@ -1,4 +1,4 @@
-name: Deploy Issuer Web VS
+name: 4_ Deploy Issuer Web VS
 
 on:
   workflow_dispatch:

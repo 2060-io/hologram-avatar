@@ -1,4 +1,4 @@
-name: Deploy Verifier Chatbot VS
+name: 3_ Deploy Verifier Chatbot VS
 
 on:
   workflow_dispatch:

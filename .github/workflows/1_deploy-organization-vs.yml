@@ -1,4 +1,4 @@
-name: Deploy Organization VS
+name: 1_ Deploy Organization VS
 
 on:
   workflow_dispatch:

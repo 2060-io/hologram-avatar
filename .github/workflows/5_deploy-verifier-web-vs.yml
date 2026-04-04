@@ -1,4 +1,4 @@
-name: Deploy Verifier Web VS
+name: 5_ Deploy Verifier Web VS
 
 on:
   workflow_dispatch:

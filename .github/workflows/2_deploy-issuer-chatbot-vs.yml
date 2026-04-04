@@ -1,4 +1,4 @@
-name: Deploy Issuer Chatbot VS
+name: 2_ Deploy Issuer Chatbot VS
 
 on:
   workflow_dispatch:
