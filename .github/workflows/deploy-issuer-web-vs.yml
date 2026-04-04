@@ -342,6 +342,15 @@ jobs:
 
           kubectl rollout status deployment/"${APP_NAME}" -n "$NAMESPACE" --timeout=300s
 
+      - name: Configure VS-Agent EVENTS_BASE_URL
+        if: inputs.step == 'deploy-web' || inputs.step == 'all'
+        run: |
+          APP_NAME="issuer-web-app-${VS_NAME}"
+          WEB_URL="http://${APP_NAME}:${ISSUER_WEB_PORT:-4001}/webhooks"
+          kubectl set env statefulset/"${RELEASE_NAME}" \
+            -n "$CHART_NAMESPACE" \
+            EVENTS_BASE_URL="$WEB_URL"
+
       # -----------------------------------------------------------------------
       # CLEANUP
       # -----------------------------------------------------------------------

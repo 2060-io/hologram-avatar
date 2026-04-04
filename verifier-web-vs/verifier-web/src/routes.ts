@@ -74,9 +74,9 @@ export function createRoutes(
     }
   });
 
-  // Webhook: proof presentation received
+  // Webhook: message-received (proof presentation, etc.)
   router.post(
-    "/webhooks/proof-received",
+    "/webhooks/message-received",
     (req: Request, res: Response) => {
       try {
         const event = req.body as ProofReceivedEvent;
@@ -121,19 +121,30 @@ export function createRoutes(
 }
 
 function extractClaims(event: ProofReceivedEvent): Record<string, string> {
+  const raw: Record<string, unknown> = {};
+
   if (event.submittedProofItems && event.submittedProofItems.length > 0) {
-    const allClaims: Record<string, string> = {};
     for (const item of event.submittedProofItems) {
       if (item.claims) {
-        Object.assign(allClaims, item.claims);
+        Object.assign(raw, item.claims);
       }
     }
-    return allClaims;
+  } else if (event.claims) {
+    Object.assign(raw, event.claims);
+  } else {
+    return {};
   }
-  if (event.claims) {
-    return event.claims;
+
+  // Unwrap object values (e.g. {value: "John"} → "John")
+  const result: Record<string, string> = {};
+  for (const [key, val] of Object.entries(raw)) {
+    if (val && typeof val === "object" && "value" in val) {
+      result[key] = String((val as { value: unknown }).value);
+    } else {
+      result[key] = String(val);
+    }
   }
-  return {};
+  return result;
 }
 
 function renderPage(serviceName: string, schemaTitle: string): string {
