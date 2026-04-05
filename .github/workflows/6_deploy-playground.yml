@@ -1,0 +1,165 @@
+name: 6_ Deploy Playground
+
+on:
+  workflow_dispatch:
+
+jobs:
+  deploy-playground:
+    name: Build and Deploy Playground
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Validate branch and extract network
+        run: |
+          BRANCH="${GITHUB_REF_NAME}"
+          if [ "$BRANCH" = "vs/testnet-main" ]; then
+            echo "::error::Branch vs/testnet-main is reserved. Deploy from 'main' branch instead."
+            exit 1
+          elif [ "$BRANCH" = "main" ]; then
+            NETWORK="testnet"
+            VS_NAME="main"
+          elif [[ "$BRANCH" =~ ^vs/(testnet|devnet)- ]]; then
+            SUFFIX="${BRANCH#vs/}"
+            NETWORK="${SUFFIX%%-*}"
+            VS_NAME="${SUFFIX#*-}"
+          else
+            echo "::error::Branch must be 'main' or match vs/testnet-<name> or vs/devnet-<name> (current: $BRANCH)"
+            exit 1
+          fi
+          echo "NETWORK=${NETWORK}" >> "$GITHUB_ENV"
+          echo "VS_NAME=${VS_NAME}" >> "$GITHUB_ENV"
+          echo "Branch: $BRANCH — Network: $NETWORK — Service: $VS_NAME"
+
+      - name: Set up kubeconfig
+        run: |
+          mkdir -p ~/.kube
+          cat > ~/.kube/config <<'KUBEEOF'
+          ${{ secrets.OVH_KUBECONFIG }}
+          KUBEEOF
+
+      - name: Install kubectl
+        uses: azure/setup-kubectl@v4
+        with:
+          version: 'v1.29.9'
+
+      # -----------------------------------------------------------------------
+      # BUILD: Docker image
+      # -----------------------------------------------------------------------
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Log in to container registry
+        uses: docker/login-action@v3
+        with:
+          username: ${{ secrets.DOCKER_HUB_LOGIN }}
+          password: ${{ secrets.DOCKER_HUB_PWD }}
+
+      - name: Build and push Playground image
+        uses: docker/build-push-action@v6
+        with:
+          context: ./playground
+          push: true
+          tags: |
+            veranalabs/playground:${{ github.sha }}
+            veranalabs/playground:${{ env.VS_NAME }}
+          build-args: |
+            NEXT_PUBLIC_ISSUER_CHATBOT_VS_ADMIN_URL=https://issuer-chatbot-vs.${{ env.VS_NAME }}.demos.${{ env.NETWORK }}.verana.network
+            NEXT_PUBLIC_VERIFIER_CHATBOT_VS_ADMIN_URL=https://verifier-chatbot-vs.${{ env.VS_NAME }}.demos.${{ env.NETWORK }}.verana.network
+            NEXT_PUBLIC_ISSUER_WEB_URL=https://app.issuer-web-vs.${{ env.VS_NAME }}.demos.${{ env.NETWORK }}.verana.network
+            NEXT_PUBLIC_VERIFIER_WEB_URL=https://app.verifier-web-vs.${{ env.VS_NAME }}.demos.${{ env.NETWORK }}.verana.network
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      # -----------------------------------------------------------------------
+      # DEPLOY: Kubernetes resources
+      # -----------------------------------------------------------------------
+      - name: Deploy Playground
+        run: |
+          NAMESPACE="${{ secrets.K8S_NAMESPACE }}"
+          APP_NAME="playground-${VS_NAME}"
+          IMAGE="veranalabs/playground:${{ github.sha }}"
+          HOST="playground.${VS_NAME}.demos.${NETWORK}.verana.network"
+          PORT=3000
+
+          cat <<EOF | kubectl apply -f -
+          apiVersion: apps/v1
+          kind: Deployment
+          metadata:
+            name: ${APP_NAME}
+            namespace: ${NAMESPACE}
+            labels:
+              app: ${APP_NAME}
+          spec:
+            replicas: 1
+            selector:
+              matchLabels:
+                app: ${APP_NAME}
+            template:
+              metadata:
+                labels:
+                  app: ${APP_NAME}
+                annotations:
+                  deploy-timestamp: "$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+              spec:
+                containers:
+                  - name: playground
+                    image: ${IMAGE}
+                    imagePullPolicy: Always
+                    ports:
+                      - containerPort: ${PORT}
+          ---
+          apiVersion: v1
+          kind: Service
+          metadata:
+            name: ${APP_NAME}
+            namespace: ${NAMESPACE}
+          spec:
+            selector:
+              app: ${APP_NAME}
+            ports:
+              - port: ${PORT}
+                targetPort: ${PORT}
+          ---
+          apiVersion: networking.k8s.io/v1
+          kind: Ingress
+          metadata:
+            name: ${APP_NAME}
+            namespace: ${NAMESPACE}
+            annotations:
+              cert-manager.io/cluster-issuer: letsencrypt-prod
+              nginx.ingress.kubernetes.io/enable-cors: "true"
+          spec:
+            ingressClassName: nginx
+            tls:
+              - hosts:
+                  - ${HOST}
+                secretName: ${APP_NAME}-tls
+            rules:
+              - host: ${HOST}
+                http:
+                  paths:
+                    - path: /
+                      pathType: Prefix
+                      backend:
+                        service:
+                          name: ${APP_NAME}
+                          port:
+                            number: ${PORT}
+          EOF
+
+          kubectl rollout status deployment/"${APP_NAME}" -n "$NAMESPACE" --timeout=300s
+
+      # -----------------------------------------------------------------------
+      # SUMMARY
+      # -----------------------------------------------------------------------
+      - name: Summary
+        if: always()
+        run: |
+          echo "## Playground" >> "$GITHUB_STEP_SUMMARY"
+          echo "" >> "$GITHUB_STEP_SUMMARY"
+          echo "- **Network:** ${NETWORK:-unknown}" >> "$GITHUB_STEP_SUMMARY"
+          echo "- **Service:** ${VS_NAME:-unknown}" >> "$GITHUB_STEP_SUMMARY"
+          echo "- **URL:** https://playground.${VS_NAME}.demos.${NETWORK}.verana.network" >> "$GITHUB_STEP_SUMMARY"
+          echo "- **Image:** veranalabs/playground:${{ github.sha }}" >> "$GITHUB_STEP_SUMMARY"
