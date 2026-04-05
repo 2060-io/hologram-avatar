@@ -104,9 +104,9 @@ export default function PlaygroundPage() {
       <header className="relative bg-gradient-to-br from-[#764ba2] via-[#667eea] to-[#667eea] text-white">
         <div className="max-w-4xl mx-auto px-6 py-16 text-center">
           <img
-            src="https://verana.io/logo.svg"
+            src="https://verana.io/images/purple/logo.svg"
             alt="Verana logo"
-            className="h-10 mx-auto mb-6 brightness-0 invert"
+            className="h-10 mx-auto mb-6"
           />
           <p className="text-white/70 text-sm font-medium tracking-wider uppercase mb-3">
             Interactive Learning Environment
@@ -254,7 +254,7 @@ export default function PlaygroundPage() {
                 </p>
                 <div className="flex flex-wrap justify-center sm:justify-start gap-3">
                   <a
-                    href="https://apps.apple.com/app/hologram-messaging/id1593042764"
+                    href="https://apps.apple.com/cl/app/hologram-messaging/id6474701855"
                     target="_blank"
                     rel="noopener noreferrer"
                     className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-gray-900 text-white text-sm font-medium hover:bg-gray-800 transition-colors"
@@ -262,7 +262,7 @@ export default function PlaygroundPage() {
                     App Store
                   </a>
                   <a
-                    href="https://play.google.com/store/apps/details?id=zone.hologram.app"
+                    href="https://play.google.com/store/apps/details?id=io.twentysixty.mobileagent.m"
                     target="_blank"
                     rel="noopener noreferrer"
                     className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-gray-900 text-white text-sm font-medium hover:bg-gray-800 transition-colors"
