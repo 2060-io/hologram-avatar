@@ -355,22 +355,14 @@ export default function PlaygroundPage() {
           <div className="grid md:grid-cols-2 gap-6">
             <DemoSection
               title="Step A — Issue via Web"
-              description="The Issuer Web generates a QR code you scan to receive a credential."
+              description="Fill in the form on the Issuer Web, then scan the QR code to receive a credential."
               steps={[
-                "Open the Issuer Web service (link below)",
+                "Tap \"Open Issuer Web\" below",
                 "Fill in the credential form and submit",
-                "Scan the QR code with Hologram Messaging",
+                "Scan the generated QR code with Hologram Messaging",
                 "Accept the credential offer in your wallet",
               ]}
-              fetchInvitation={async () => {
-                if (!config.issuerWebUrl) {
-                  throw new Error(
-                    "Issuer Web URL not configured"
-                  );
-                }
-                return { url: config.issuerWebUrl };
-              }}
-              resultLabel="Open the Issuer Web to begin"
+              externalUrl={config.issuerWebUrl}
             />
 
             <DemoSection

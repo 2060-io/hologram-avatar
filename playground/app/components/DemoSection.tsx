@@ -7,6 +7,7 @@ import {
   XCircle,
   Loader2,
   RefreshCw,
+  ExternalLink,
 } from "lucide-react";
 import QRCodeLib from "qrcode";
 
@@ -16,7 +17,7 @@ interface DemoSectionProps {
   title: string;
   description: string;
   steps: string[];
-  fetchInvitation: () => Promise<{
+  fetchInvitation?: () => Promise<{
     sessionId?: string;
     qrDataUrl?: string;
     invitationUrl?: string;
@@ -28,6 +29,7 @@ interface DemoSectionProps {
     error?: string;
   }>;
   resultLabel?: string;
+  externalUrl?: string;
 }
 
 export default function DemoSection({
@@ -37,6 +39,7 @@ export default function DemoSection({
   fetchInvitation,
   pollResult,
   resultLabel = "Result",
+  externalUrl,
 }: DemoSectionProps) {
   const [state, setState] = useState<DemoState>("idle");
   const [qrDataUrl, setQrDataUrl] = useState("");
@@ -53,6 +56,7 @@ export default function DemoSection({
   }, []);
 
   const start = useCallback(async () => {
+    if (!fetchInvitation) return;
     setState("loading");
     try {
       const inv = await fetchInvitation();
@@ -117,7 +121,19 @@ export default function DemoSection({
 
         {/* Action area */}
         <div className="flex flex-col items-center">
-          {state === "idle" && (
+          {state === "idle" && externalUrl && (
+            <a
+              href={externalUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-flex items-center gap-2 px-6 py-3 bg-[#667eea] hover:bg-[#5a6fd6] text-white rounded-xl font-medium transition-colors"
+            >
+              <ExternalLink className="w-5 h-5" />
+              Open Issuer Web
+            </a>
+          )}
+
+          {state === "idle" && !externalUrl && (
             <button
               onClick={start}
               className="inline-flex items-center gap-2 px-6 py-3 bg-[#667eea] hover:bg-[#5a6fd6] text-white rounded-xl font-medium transition-colors"
