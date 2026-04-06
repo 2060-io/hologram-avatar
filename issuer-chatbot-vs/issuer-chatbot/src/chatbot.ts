@@ -306,6 +306,11 @@ export class Chatbot {
   // -----------------------------------------------------------------------
 
   private async flowNewName(connectionId: string, name: string): Promise<void> {
+    // Validate @ prefix format
+    if (!name.startsWith("@") || name.slice(1).includes("@")) {
+      return this.send(connectionId, `Avatar name must start with "@" and contain no other "@" characters. Try again:`);
+    }
+
     // Validate length
     const minLen = this.schema.nameMinLength;
     const maxLen = this.schema.nameMaxLength;
