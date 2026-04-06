@@ -3,6 +3,7 @@ import { loadConfig } from "./config";
 import { VsAgentClient } from "./vs-agent-client";
 import { discoverSchema } from "./schema-reader";
 import { SessionStore } from "./session-store";
+import { Db } from "./db";
 import { Chatbot } from "./chatbot";
 import { createWebhookRouter } from "./webhooks";
 
@@ -33,11 +34,12 @@ async function main(): Promise<void> {
     orgClient
   );
 
-  // Initialize session store
-  const store = new SessionStore(config.databaseUrl);
+  // Initialize database and session store
+  const db = await Db.create(config.databaseUrl);
+  const store = new SessionStore();
 
   // Create chatbot
-  const chatbot = new Chatbot(client, store, schema, config);
+  const chatbot = new Chatbot(client, store, db, schema, config);
 
   // Start Express server with webhook routes
   const app = express();
@@ -62,6 +64,7 @@ async function main(): Promise<void> {
   const shutdown = () => {
     console.log("Shutting down...");
     store.close();
+    db.close();
     process.exit(0);
   };
   process.on("SIGINT", shutdown);

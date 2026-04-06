@@ -243,7 +243,85 @@ jobs:
           IMAGE="io2060/avatar-issuer-chatbot:${{ github.sha }}"
           PORT="${CHATBOT_PORT:-4000}"
 
+          DB_NAME="issuer-chatbot-db"
+          DB_PASSWORD="${{ secrets.CHATBOT_DB_PASSWORD }}"
+          if [ -z "$DB_PASSWORD" ]; then
+            DB_PASSWORD="$(openssl rand -hex 16)"
+            echo "::warning::CHATBOT_DB_PASSWORD secret not set — using generated password"
+          fi
+
           cat <<EOF | kubectl apply -f -
+          apiVersion: v1
+          kind: PersistentVolumeClaim
+          metadata:
+            name: ${DB_NAME}-data
+            namespace: ${NAMESPACE}
+          spec:
+            accessModes:
+              - ReadWriteOnce
+            resources:
+              requests:
+                storage: 2Gi
+            storageClassName: csi-cinder-high-speed
+          ---
+          apiVersion: apps/v1
+          kind: Deployment
+          metadata:
+            name: ${DB_NAME}
+            namespace: ${NAMESPACE}
+            labels:
+              app: ${DB_NAME}
+          spec:
+            replicas: 1
+            strategy:
+              type: Recreate
+            selector:
+              matchLabels:
+                app: ${DB_NAME}
+            template:
+              metadata:
+                labels:
+                  app: ${DB_NAME}
+              spec:
+                containers:
+                  - name: postgres
+                    image: postgres:16-alpine
+                    ports:
+                      - containerPort: 5432
+                    env:
+                      - name: POSTGRES_DB
+                        value: chatbot
+                      - name: POSTGRES_USER
+                        value: chatbot
+                      - name: POSTGRES_PASSWORD
+                        value: "${DB_PASSWORD}"
+                    volumeMounts:
+                      - name: pgdata
+                        mountPath: /var/lib/postgresql/data
+                    resources:
+                      requests:
+                        cpu: 50m
+                        memory: 128Mi
+                      limits:
+                        cpu: 250m
+                        memory: 256Mi
+                volumes:
+                  - name: pgdata
+                    persistentVolumeClaim:
+                      claimName: ${DB_NAME}-data
+          ---
+          apiVersion: v1
+          kind: Service
+          metadata:
+            name: ${DB_NAME}
+            namespace: ${NAMESPACE}
+          spec:
+            selector:
+              app: ${DB_NAME}
+            ports:
+              - port: 5432
+                targetPort: 5432
+          ---
           apiVersion: apps/v1
           kind: Deployment
           metadata:
@@ -279,11 +357,15 @@ jobs:
                       - name: CHATBOT_PORT
                         value: "${PORT}"
                       - name: DATABASE_URL
-                        value: "${DATABASE_URL:-sqlite:./data/sessions.db}"
+                        value: "postgresql://chatbot:${DB_PASSWORD}@${DB_NAME}:5432/chatbot"
                       - name: SERVICE_NAME
                         value: "${SERVICE_NAME}"
                       - name: CUSTOM_SCHEMA_BASE_ID
                         value: "${CUSTOM_SCHEMA_BASE_ID:-example}"
+                      - name: ENABLE_ANONCREDS
+                        value: "${ENABLE_ANONCREDS:-true}"
+                      - name: LOG_LEVEL
+                        value: "${LOG_LEVEL:-info}"
           ---
           apiVersion: v1
           kind: Service

@@ -86,6 +86,10 @@ export function createWebhookRouter(chatbot: Chatbot): Router {
         const menuId =
           msg.selectionId || msg.menuId || msg.selectedOption || msg.content || msg.text || "";
         await chatbot.onMenuSelect(connectionId, menuId);
+      } else if (msgType === "answer" || msgType === "question-answer") {
+        const selectionId =
+          msg.selectionId || msg.content || msg.text || "";
+        await chatbot.onMenuSelect(connectionId, selectionId);
       } else if (msgType === "text") {
         const text = msg.content || msg.text || "";
         if (text) {

@@ -1,138 +1,100 @@
-import Database from "better-sqlite3";
-import path from "path";
-import fs from "fs";
+/**
+ * In-memory flow state for each connection.
+ * Persistent data lives in Db (accounts + avatars).
+ * This module only tracks the *current interactive flow* per connection.
+ */
 
-export enum SessionState {
-  WELCOME = "WELCOME",
-  COLLECT_ATTRS = "COLLECT_ATTRS",
+export enum FlowType {
+  NONE = "NONE",
+  NEW_AVATAR = "NEW_AVATAR",
+  DELETE_AVATAR = "DELETE_AVATAR",
   ISSUE = "ISSUE",
-  DONE = "DONE",
+  RESTORE = "RESTORE",
+  AUTH = "AUTH",
+  PASSWORD = "PASSWORD",
+  AUTHENTICATOR = "AUTHENTICATOR",
+  SETUP = "SETUP",
 }
 
-export interface Session {
-  connectionId: string;
-  state: SessionState;
-  currentAttributeIndex: number;
-  collectedAttributes: Record<string, string>;
-  createdAt: string;
-  updatedAt: string;
+export enum FlowStep {
+  // Shared
+  IDLE = "IDLE",
+
+  // /new
+  NEW_AWAIT_NAME = "NEW_AWAIT_NAME",
+
+  // /delete
+  DELETE_AWAIT_NAME = "DELETE_AWAIT_NAME",
+
+  // /issue (takes <name> inline, but might prompt if missing)
+  ISSUE_AWAIT_NAME = "ISSUE_AWAIT_NAME",
+
+  // /restore
+  RESTORE_AWAIT_NAME = "RESTORE_AWAIT_NAME",
+  RESTORE_AWAIT_METHOD = "RESTORE_AWAIT_METHOD",
+  RESTORE_AWAIT_PASSWORD = "RESTORE_AWAIT_PASSWORD",
+  RESTORE_AWAIT_OTP = "RESTORE_AWAIT_OTP",
+
+  // /auth
+  AUTH_AWAIT_METHOD = "AUTH_AWAIT_METHOD",
+  AUTH_AWAIT_PASSWORD = "AUTH_AWAIT_PASSWORD",
+  AUTH_AWAIT_OTP = "AUTH_AWAIT_OTP",
+
+  // /password
+  PASSWORD_AWAIT_AUTH = "PASSWORD_AWAIT_AUTH",
+  PASSWORD_AWAIT_ENTER = "PASSWORD_AWAIT_ENTER",
+  PASSWORD_AWAIT_CONFIRM = "PASSWORD_AWAIT_CONFIRM",
+
+  // /authenticator
+  AUTHENTICATOR_AWAIT_AUTH = "AUTHENTICATOR_AWAIT_AUTH",
+  AUTHENTICATOR_AWAIT_OTP = "AUTHENTICATOR_AWAIT_OTP",
+
+  // /setup
+  SETUP_AWAIT_CHOICE = "SETUP_AWAIT_CHOICE",
+  SETUP_AWAIT_AUTH_METHOD = "SETUP_AWAIT_AUTH_METHOD",
+}
+
+export interface FlowState {
+  type: FlowType;
+  step: FlowStep;
+  /** Scratch data for the current flow */
+  data: Record<string, string>;
 }
 
 export class SessionStore {
-  private db: Database.Database;
+  private flows: Map<string, FlowState> = new Map();
 
-  constructor(databaseUrl: string) {
-    const dbPath = this.resolvePath(databaseUrl);
-    const dir = path.dirname(dbPath);
-    if (!fs.existsSync(dir)) {
-      fs.mkdirSync(dir, { recursive: true });
+  getFlow(connectionId: string): FlowState {
+    let flow = this.flows.get(connectionId);
+    if (!flow) {
+      flow = { type: FlowType.NONE, step: FlowStep.IDLE, data: {} };
+      this.flows.set(connectionId, flow);
     }
-    this.db = new Database(dbPath);
-    this.db.pragma("journal_mode = WAL");
-    this.initSchema();
+    return flow;
   }
 
-  private resolvePath(databaseUrl: string): string {
-    // Parse "sqlite:./data/sessions.db" → "./data/sessions.db"
-    if (databaseUrl.startsWith("sqlite:")) {
-      return databaseUrl.slice("sqlite:".length);
+  setFlow(connectionId: string, type: FlowType, step: FlowStep, data: Record<string, string> = {}): void {
+    this.flows.set(connectionId, { type, step, data });
+  }
+
+  updateStep(connectionId: string, step: FlowStep, extraData?: Record<string, string>): void {
+    const flow = this.getFlow(connectionId);
+    flow.step = step;
+    if (extraData) {
+      Object.assign(flow.data, extraData);
     }
-    return databaseUrl;
   }
 
-  private initSchema(): void {
-    this.db.exec(`
-      CREATE TABLE IF NOT EXISTS sessions (
-        connectionId TEXT PRIMARY KEY,
-        state TEXT NOT NULL DEFAULT 'WELCOME',
-        currentAttributeIndex INTEGER NOT NULL DEFAULT 0,
-        collectedAttributes TEXT NOT NULL DEFAULT '{}',
-        createdAt TEXT NOT NULL DEFAULT (datetime('now')),
-        updatedAt TEXT NOT NULL DEFAULT (datetime('now'))
-      )
-    `);
+  resetFlow(connectionId: string): void {
+    this.flows.set(connectionId, { type: FlowType.NONE, step: FlowStep.IDLE, data: {} });
   }
 
-  getSession(connectionId: string): Session | undefined {
-    const row = this.db
-      .prepare("SELECT * FROM sessions WHERE connectionId = ?")
-      .get(connectionId) as
-      | {
-          connectionId: string;
-          state: string;
-          currentAttributeIndex: number;
-          collectedAttributes: string;
-          createdAt: string;
-          updatedAt: string;
-        }
-      | undefined;
-
-    if (!row) return undefined;
-
-    return {
-      connectionId: row.connectionId,
-      state: row.state as SessionState,
-      currentAttributeIndex: row.currentAttributeIndex,
-      collectedAttributes: JSON.parse(row.collectedAttributes),
-      createdAt: row.createdAt,
-      updatedAt: row.updatedAt,
-    };
-  }
-
-  createSession(connectionId: string): Session {
-    const now = new Date().toISOString();
-    this.db
-      .prepare(
-        `INSERT OR REPLACE INTO sessions
-         (connectionId, state, currentAttributeIndex, collectedAttributes, createdAt, updatedAt)
-         VALUES (?, ?, ?, ?, ?, ?)`
-      )
-      .run(connectionId, SessionState.WELCOME, 0, "{}", now, now);
-
-    return {
-      connectionId,
-      state: SessionState.WELCOME,
-      currentAttributeIndex: 0,
-      collectedAttributes: {},
-      createdAt: now,
-      updatedAt: now,
-    };
-  }
-
-  updateSession(
-    connectionId: string,
-    updates: Partial<
-      Pick<Session, "state" | "currentAttributeIndex" | "collectedAttributes">
-    >
-  ): void {
-    const session = this.getSession(connectionId);
-    if (!session) return;
-
-    const newState = updates.state ?? session.state;
-    const newIndex =
-      updates.currentAttributeIndex ?? session.currentAttributeIndex;
-    const newAttrs = updates.collectedAttributes
-      ? JSON.stringify(updates.collectedAttributes)
-      : JSON.stringify(session.collectedAttributes);
-
-    this.db
-      .prepare(
-        `UPDATE sessions
-         SET state = ?, currentAttributeIndex = ?, collectedAttributes = ?, updatedAt = datetime('now')
-         WHERE connectionId = ?`
-      )
-      .run(newState, newIndex, newAttrs, connectionId);
-  }
-
-  resetSession(connectionId: string, toState: SessionState): void {
-    this.updateSession(connectionId, {
-      state: toState,
-      currentAttributeIndex: 0,
-      collectedAttributes: {},
-    });
+  isInFlow(connectionId: string): boolean {
+    const flow = this.getFlow(connectionId);
+    return flow.type !== FlowType.NONE;
   }
 
   close(): void {
-    this.db.close();
+    this.flows.clear();
   }
 }

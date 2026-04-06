@@ -170,6 +170,42 @@ export class VsAgentClient {
     }
   }
 
+  async sendQuestionMessage(
+    connectionId: string,
+    question: string,
+    options: { id: string; title: string }[],
+    contextualMenu?: ContextualMenu
+  ): Promise<void> {
+    await this.request<unknown>("POST", "/v1/message", {
+      type: "question",
+      connectionId,
+      content: question,
+      options,
+    });
+    if (contextualMenu) {
+      await this.request<unknown>("POST", "/v1/message", {
+        type: "contextual-menu-update",
+        connectionId,
+        title: contextualMenu.title,
+        description: contextualMenu.description,
+        options: contextualMenu.options,
+      });
+    }
+  }
+
+  async sendMenuUpdate(
+    connectionId: string,
+    menu: ContextualMenu
+  ): Promise<void> {
+    await this.request<unknown>("POST", "/v1/message", {
+      type: "contextual-menu-update",
+      connectionId,
+      title: menu.title,
+      description: menu.description,
+      options: menu.options,
+    });
+  }
+
   async waitForReady(
     maxRetries: number = 30,
     intervalMs: number = 2000

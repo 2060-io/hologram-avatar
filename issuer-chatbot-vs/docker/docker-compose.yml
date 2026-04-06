@@ -36,11 +36,19 @@ services:
       - "${CHATBOT_PORT:-4000}:${CHATBOT_PORT:-4000}"
     environment:
       - VS_AGENT_ADMIN_URL=http://vs-agent:3000
+      - ORG_VS_ADMIN_URL=${ORG_VS_ADMIN_URL:-http://vs-agent:3000}
+      - ORG_VS_PUBLIC_URL=${ORG_VS_PUBLIC_URL:-}
       - CHATBOT_PORT=${CHATBOT_PORT:-4000}
-      - DATABASE_URL=${DATABASE_URL:-sqlite:./data/sessions.db}
+      - DATABASE_URL=${DATABASE_URL:-sqlite:./data/chatbot.db}
       - SERVICE_NAME=${SERVICE_NAME:-Example Issuer Chatbot}
+      - CUSTOM_SCHEMA_BASE_ID=${CUSTOM_SCHEMA_BASE_ID:-example}
+      - ENABLE_ANONCREDS=${ENABLE_ANONCREDS:-false}
+      - LOG_LEVEL=${LOG_LEVEL:-info}
+    volumes:
+      - chatbot-data:/app/data
     depends_on:
       - vs-agent
 
 volumes:
   vs-agent-data:
+  chatbot-data:

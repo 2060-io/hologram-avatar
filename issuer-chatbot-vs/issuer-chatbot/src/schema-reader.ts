@@ -40,6 +40,8 @@ export interface SchemaInfo {
   schemaId: string;
   title: string;
   attributes: SchemaAttribute[];
+  nameMinLength: number;
+  nameMaxLength: number;
   credentialDefinitionId: string;
 }
 
@@ -171,13 +173,13 @@ export async function discoverSchema(
 
   const properties = (csProps.properties || {}) as Record<
     string,
-    { type?: string; description?: string }
+    { type?: string; description?: string; minLength?: number; maxLength?: number }
   >;
   const required = ((csProps.required || []) as string[]).filter(
     (r) => r !== "id"
   );
 
-  const attributes: SchemaAttribute[] = Object.entries(properties)
+  const allAttributes: SchemaAttribute[] = Object.entries(properties)
     .filter(([name]) => name !== "id")
     .map(([name, prop]) => ({
       name,
@@ -186,11 +188,14 @@ export async function discoverSchema(
       required: required.includes(name),
     }));
 
-  if (attributes.length === 0) {
+  if (allAttributes.length === 0) {
     throw new Error(
       `Schema has no credentialSubject properties (excluding "id")`
     );
   }
+
+  // Only collect required attributes from the user
+  const attributes = allAttributes.filter((a) => a.required);
 
   const title = (schema.title as string) || "Credential";
 
@@ -202,11 +207,18 @@ export async function discoverSchema(
   // Ensure a local AnonCreds credential type exists on the issuer agent
   const credentialDefinitionId = await ensureCredentialType(client, vtjscId, title);
 
+  // Extract name field constraints for avatar validation
+  const nameProp = properties["name"];
+  const nameMinLength = nameProp?.minLength ?? 1;
+  const nameMaxLength = nameProp?.maxLength ?? 256;
+
   return {
     vtjscId,
     schemaId: vtjscId.replace(/-jsc\.json$/, ""),
     title,
     attributes,
+    nameMinLength,
+    nameMaxLength,
     credentialDefinitionId,
   };
 }
