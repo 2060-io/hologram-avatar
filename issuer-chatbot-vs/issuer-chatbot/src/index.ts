@@ -6,6 +6,7 @@ import { SessionStore } from "./session-store";
 import { Db } from "./db";
 import { Chatbot } from "./chatbot";
 import { createWebhookRouter } from "./webhooks";
+import { MediaStore } from "./media-store";
 
 async function main(): Promise<void> {
   const config = loadConfig();
@@ -38,8 +39,25 @@ async function main(): Promise<void> {
   const db = await Db.create(config.databaseUrl);
   const store = new SessionStore();
 
+  // Initialize media store (MinIO)
+  const mediaStore = new MediaStore({
+    endpoint: config.minioEndpoint,
+    port: config.minioPort,
+    accessKey: config.minioAccessKey,
+    secretKey: config.minioSecretKey,
+    bucket: config.minioBucket,
+    useSSL: config.minioUseSSL,
+    publicUrl: config.minioPublicUrl,
+  });
+  try {
+    await mediaStore.init();
+    console.log(`MinIO ready — bucket: ${config.minioBucket}`);
+  } catch (err) {
+    console.warn(`MinIO init failed (avatar images will not work):`, err);
+  }
+
   // Create chatbot
-  const chatbot = new Chatbot(client, store, db, schema, config);
+  const chatbot = new Chatbot(client, store, db, schema, config, mediaStore);
 
   // Start Express server with webhook routes
   const app = express();

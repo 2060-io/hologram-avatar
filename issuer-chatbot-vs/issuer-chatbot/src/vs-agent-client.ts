@@ -168,6 +168,32 @@ export class VsAgentClient {
     });
   }
 
+  async sendMediaImage(
+    connectionId: string,
+    uri: string,
+    mimeType: string,
+    width: number,
+    height: number,
+    byteCount: number,
+    description?: string
+  ): Promise<void> {
+    await this.request<unknown>("POST", "/v1/message", {
+      type: "media",
+      connectionId,
+      description: description || "Avatar image",
+      items: [
+        {
+          uri,
+          mimeType,
+          width,
+          height,
+          byteCount,
+          description: description || "Avatar image",
+        },
+      ],
+    });
+  }
+
   async sendMessage(params: SendMessageRequest): Promise<void> {
     // Send text message
     await this.request<unknown>("POST", "/v1/message", {

@@ -7,6 +7,15 @@ interface ConnectionStateEvent {
   [key: string]: unknown;
 }
 
+interface MediaItem {
+  uri?: string;
+  mimeType?: string;
+  byteCount?: number;
+  width?: number;
+  height?: number;
+  [key: string]: unknown;
+}
+
 interface MessageReceivedEvent {
   timestamp?: string;
   message: {
@@ -18,6 +27,7 @@ interface MessageReceivedEvent {
     selectionId?: string;
     menuId?: string;
     selectedOption?: string;
+    items?: MediaItem[];
     [key: string]: unknown;
   };
   [key: string]: unknown;
@@ -90,6 +100,14 @@ export function createWebhookRouter(chatbot: Chatbot): Router {
         const text = msg.content || msg.text || "";
         if (text) {
           await chatbot.onTextMessage(connectionId, text);
+        }
+      } else if (msgType === "media") {
+        const items = msg.items || [];
+        const firstItem = items[0];
+        if (firstItem?.uri && firstItem?.mimeType?.startsWith("image/")) {
+          await chatbot.onMediaMessage(connectionId, firstItem.uri, firstItem.mimeType);
+        } else {
+          console.log(`Ignoring media message without image item`);
         }
       } else {
         console.log(`Ignoring unhandled message type: ${msgType}`);

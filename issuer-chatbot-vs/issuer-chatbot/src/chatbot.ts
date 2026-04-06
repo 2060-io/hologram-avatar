@@ -1,9 +1,12 @@
 import * as OTPAuth from "otpauth";
+import { randomUUID } from "crypto";
 import { Config } from "./config";
 import { VsAgentClient, ContextualMenu, ContextualMenuEntry } from "./vs-agent-client";
 import { SchemaInfo } from "./schema-reader";
 import { SessionStore, FlowType, FlowStep } from "./session-store";
 import { Db } from "./db";
+import { MediaStore } from "./media-store";
+import { processAvatarImage } from "./image-processor";
 
 export class Chatbot {
   private client: VsAgentClient;
@@ -11,19 +14,22 @@ export class Chatbot {
   private db: Db;
   private schema: SchemaInfo;
   private config: Config;
+  private mediaStore: MediaStore;
 
   constructor(
     client: VsAgentClient,
     store: SessionStore,
     db: Db,
     schema: SchemaInfo,
-    config: Config
+    config: Config,
+    mediaStore: MediaStore
   ) {
     this.client = client;
     this.store = store;
     this.db = db;
     this.schema = schema;
     this.config = config;
+    this.mediaStore = mediaStore;
   }
 
   // -----------------------------------------------------------------------
@@ -91,6 +97,21 @@ export class Chatbot {
     console.log(`Text from ${connectionId}: ${text}`);
     await this.db.ensureAccount(connectionId);
     await this.handleInput(connectionId, text.trim());
+  }
+
+  async onMediaMessage(connectionId: string, uri: string, mimeType: string): Promise<void> {
+    console.log(`Media from ${connectionId}: ${mimeType} ${uri}`);
+    await this.db.ensureAccount(connectionId);
+
+    const flow = this.store.getFlow(connectionId);
+    if (
+      flow.step === FlowStep.NEW_AWAIT_IMAGE ||
+      flow.step === FlowStep.ISSUE_AWAIT_IMAGE
+    ) {
+      await this.flowProcessImage(connectionId, uri);
+    } else {
+      await this.send(connectionId, "Image received, but no active flow is expecting an image.");
+    }
   }
 
   // -----------------------------------------------------------------------
@@ -247,6 +268,12 @@ export class Chatbot {
       // /new
       case FlowStep.NEW_AWAIT_NAME:
         return this.flowNewName(connectionId, input);
+      case FlowStep.NEW_AWAIT_NAME_CONFIRM:
+        return this.flowNewNameConfirm(connectionId, input);
+      case FlowStep.NEW_AWAIT_IMAGE:
+        return this.flowImageSkipOrText(connectionId, input);
+      case FlowStep.NEW_AWAIT_IMAGE_CONFIRM:
+        return this.flowImageConfirm(connectionId, input);
 
       // /delete
       case FlowStep.DELETE_AWAIT_NAME:
@@ -255,6 +282,10 @@ export class Chatbot {
       // /issue
       case FlowStep.ISSUE_AWAIT_NAME:
         return this.doIssue(connectionId, input);
+      case FlowStep.ISSUE_AWAIT_IMAGE:
+        return this.flowImageSkipOrText(connectionId, input);
+      case FlowStep.ISSUE_AWAIT_IMAGE_CONFIRM:
+        return this.flowImageConfirm(connectionId, input);
 
       // /restore
       case FlowStep.RESTORE_AWAIT_NAME:
@@ -323,12 +354,151 @@ export class Chatbot {
       return this.send(connectionId, `The avatar name "${name}" is already taken. Try another name:`);
     }
 
-    // Create avatar
-    await this.db.createAvatar(name, connectionId);
-    this.store.resetFlow(connectionId);
+    // Step 2: Confirm name
+    this.store.updateStep(connectionId, FlowStep.NEW_AWAIT_NAME_CONFIRM, { avatarName: name });
+    await this.client.sendQuestionMessage(
+      connectionId,
+      `Avatar name: ${name}. Confirm?`,
+      [
+        { id: "confirm_yes", title: "Yes" },
+        { id: "confirm_no", title: "No" },
+      ],
+      await this.buildMenu(connectionId)
+    );
+  }
 
-    await this.send(connectionId, `Avatar "${name}" created! Issuing credential...`);
-    await this.doIssueInternal(connectionId, name);
+  private async flowNewNameConfirm(connectionId: string, input: string): Promise<void> {
+    if (input === "confirm_no") {
+      this.store.updateStep(connectionId, FlowStep.NEW_AWAIT_NAME);
+      return this.send(connectionId, "Enter a name for your new avatar:");
+    }
+    if (input !== "confirm_yes") {
+      return this.send(connectionId, "Please select Yes or No.");
+    }
+
+    // Name confirmed — move to image step
+    await this.promptForImage(connectionId);
+  }
+
+  // -----------------------------------------------------------------------
+  // Shared image flow (used by both /new and /issue)
+  // -----------------------------------------------------------------------
+
+  private async promptForImage(connectionId: string): Promise<void> {
+    const flow = this.store.getFlow(connectionId);
+    const imageStep =
+      flow.type === FlowType.NEW_AVATAR
+        ? FlowStep.NEW_AWAIT_IMAGE
+        : FlowStep.ISSUE_AWAIT_IMAGE;
+
+    this.store.updateStep(connectionId, imageStep);
+
+    await this.send(
+      connectionId,
+      "Send an image for your avatar (preferably squared, minimum 128×128)."
+    );
+    await this.client.sendQuestionMessage(
+      connectionId,
+      "Or you can skip",
+      [{ id: "skip_image", title: "Skip" }],
+      await this.buildMenu(connectionId)
+    );
+  }
+
+  private async flowImageSkipOrText(connectionId: string, input: string): Promise<void> {
+    if (input === "skip_image") {
+      // Issue with empty avatar
+      await this.finalizeIssue(connectionId, "");
+      return;
+    }
+    await this.send(connectionId, "Please send an image, or tap Skip.");
+  }
+
+  private async flowProcessImage(connectionId: string, mediaUri: string): Promise<void> {
+    try {
+      await this.send(connectionId, "Processing your image...");
+
+      // Download from VS-Agent media URI
+      const { buffer } = await this.mediaStore.downloadFromUrl(mediaUri);
+
+      // Process: center crop + resize to 512x512 + PNG
+      const processed = await processAvatarImage(buffer);
+
+      // Upload to MinIO
+      const objectName = `${connectionId}/${randomUUID()}.png`;
+      const presignedUrl = await this.mediaStore.upload(
+        objectName,
+        processed.buffer,
+        processed.mimeType
+      );
+
+      // Send processed image back to user
+      await this.client.sendMediaImage(
+        connectionId,
+        presignedUrl,
+        processed.mimeType,
+        processed.width,
+        processed.height,
+        processed.buffer.length,
+        "Your processed avatar"
+      );
+
+      // Store the base64 data URI in flow data for credential issuance
+      const flow = this.store.getFlow(connectionId);
+      const confirmStep =
+        flow.type === FlowType.NEW_AVATAR
+          ? FlowStep.NEW_AWAIT_IMAGE_CONFIRM
+          : FlowStep.ISSUE_AWAIT_IMAGE_CONFIRM;
+
+      this.store.updateStep(connectionId, confirmStep, {
+        avatarBase64: processed.base64DataUri,
+      });
+
+      await this.client.sendQuestionMessage(
+        connectionId,
+        "Confirm this avatar?",
+        [
+          { id: "image_yes", title: "Yes" },
+          { id: "image_no", title: "No" },
+        ],
+        await this.buildMenu(connectionId)
+      );
+    } catch (error) {
+      console.error(`Failed to process image for ${connectionId}:`, error);
+      await this.send(connectionId, "Failed to process image. Please try again or tap Skip.");
+      // Stay in the same image-await step
+    }
+  }
+
+  private async flowImageConfirm(connectionId: string, input: string): Promise<void> {
+    if (input === "image_no") {
+      // Go back to image prompt
+      await this.promptForImage(connectionId);
+      return;
+    }
+    if (input !== "image_yes") {
+      return this.send(connectionId, "Please select Yes or No.");
+    }
+
+    const flow = this.store.getFlow(connectionId);
+    const avatarBase64 = flow.data.avatarBase64 || "";
+    await this.finalizeIssue(connectionId, avatarBase64);
+  }
+
+  private async finalizeIssue(connectionId: string, avatarValue: string): Promise<void> {
+    const flow = this.store.getFlow(connectionId);
+    const avatarName = flow.data.avatarName;
+
+    if (flow.type === FlowType.NEW_AVATAR) {
+      // Persist the avatar in DB
+      await this.db.createAvatar(avatarName, connectionId);
+      await this.send(connectionId, `Avatar "${avatarName}" created! Issuing credential...`);
+    } else {
+      await this.send(connectionId, `Reissuing credential for "${avatarName}"...`);
+    }
+
+    this.store.resetFlow(connectionId);
+    await this.doIssueInternal(connectionId, avatarName, avatarValue);
   }
 
   // -----------------------------------------------------------------------
@@ -355,24 +525,34 @@ export class Chatbot {
   // -----------------------------------------------------------------------
 
   private async doIssue(connectionId: string, name: string): Promise<void> {
-    this.store.resetFlow(connectionId);
     const avatar = await this.db.getAvatar(name);
     if (!avatar) {
+      this.store.resetFlow(connectionId);
       return this.send(connectionId, `Avatar "${name}" not found.`);
     }
     if (avatar.accountConnectionId !== connectionId) {
+      this.store.resetFlow(connectionId);
       return this.send(connectionId, `You are not the owner of avatar "${name}".`);
     }
-    await this.send(connectionId, `Reissuing credential for "${name}"...`);
-    await this.doIssueInternal(connectionId, name);
+
+    // Start the image prompt flow for reissuance
+    this.store.setFlow(connectionId, FlowType.ISSUE, FlowStep.ISSUE_AWAIT_IMAGE, {
+      avatarName: name,
+    });
+    await this.promptForImage(connectionId);
   }
 
-  private async doIssueInternal(connectionId: string, avatarName: string): Promise<void> {
+  private async doIssueInternal(
+    connectionId: string,
+    avatarName: string,
+    avatarValue: string = ""
+  ): Promise<void> {
     try {
-      const claimsArray = this.schema.attributes.map((attr) => ({
-        name: attr.name,
-        value: attr.name === "name" ? avatarName : "",
-      }));
+      const claimsArray = this.schema.attributes.map((attr) => {
+        if (attr.name === "name") return { name: attr.name, value: avatarName };
+        if (attr.name === "avatar") return { name: attr.name, value: avatarValue };
+        return { name: attr.name, value: "" };
+      });
       console.log(`Issuing credential to ${connectionId} for avatar "${avatarName}"`);
 
       await this.client.issueCredentialOverConnection(
