@@ -49,8 +49,8 @@ jobs:
           context: ./playground
           push: true
           tags: |
-            veranalabs/playground:${{ github.sha }}
-            veranalabs/playground:latest
+            io2060/avatar-playground:${{ github.sha }}
+            io2060/avatar-playground:latest
           build-args: |
             NEXT_PUBLIC_ISSUER_WEB_URL=https://app.issuer-web-vs.avatar.hologram.zone
           cache-from: type=gha
@@ -63,7 +63,7 @@ jobs:
         run: |
           NAMESPACE="${{ secrets.K8S_NAMESPACE }}"
           APP_NAME="playground"
-          IMAGE="veranalabs/playground:${{ github.sha }}"
+          IMAGE="io2060/avatar-playground:${{ github.sha }}"
           HOST="avatar.hologram.zone"
           PORT=3000
 
@@ -152,4 +152,4 @@ jobs:
           echo "" >> "$GITHUB_STEP_SUMMARY"
           echo "- **Network:** testnet" >> "$GITHUB_STEP_SUMMARY"
           echo "- **URL:** https://avatar.hologram.zone" >> "$GITHUB_STEP_SUMMARY"
-          echo "- **Image:** veranalabs/playground:${{ github.sha }}" >> "$GITHUB_STEP_SUMMARY"
+          echo "- **Image:** io2060/avatar-playground:${{ github.sha }}" >> "$GITHUB_STEP_SUMMARY"

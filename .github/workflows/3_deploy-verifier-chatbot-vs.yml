@@ -206,8 +206,8 @@ jobs:
           context: ./verifier-chatbot-vs/verifier-chatbot
           push: true
           tags: |
-            veranalabs/verifier-chatbot:${{ github.sha }}
-            veranalabs/verifier-chatbot:latest
+            io2060/avatar-verifier-chatbot:${{ github.sha }}
+            io2060/avatar-verifier-chatbot:latest
           cache-from: type=gha
           cache-to: type=gha,mode=max
 
@@ -216,7 +216,7 @@ jobs:
         run: |
           NAMESPACE="${CHART_NAMESPACE}"
           APP_NAME="verifier-chatbot-app"
-          IMAGE="veranalabs/verifier-chatbot:${{ github.sha }}"
+          IMAGE="io2060/avatar-verifier-chatbot:${{ github.sha }}"
           PORT="${CHATBOT_PORT:-4002}"
 
           cat <<EOF | kubectl apply -f -
@@ -306,5 +306,5 @@ jobs:
           fi
           echo "- **Network:** testnet" >> "$GITHUB_STEP_SUMMARY"
           if [ "${{ inputs.step }}" = "deploy-chatbot" ] || [ "${{ inputs.step }}" = "all" ]; then
-            echo "- **Chatbot Image:** veranalabs/verifier-chatbot:${{ github.sha }}" >> "$GITHUB_STEP_SUMMARY"
+            echo "- **Chatbot Image:** io2060/avatar-verifier-chatbot:${{ github.sha }}" >> "$GITHUB_STEP_SUMMARY"
           fi

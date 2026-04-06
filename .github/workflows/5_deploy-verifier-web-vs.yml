@@ -206,8 +206,8 @@ jobs:
           context: ./verifier-web-vs/verifier-web
           push: true
           tags: |
-            veranalabs/verifier-web:${{ github.sha }}
-            veranalabs/verifier-web:latest
+            io2060/avatar-verifier-web:${{ github.sha }}
+            io2060/avatar-verifier-web:latest
           cache-from: type=gha
           cache-to: type=gha,mode=max
 
@@ -216,7 +216,7 @@ jobs:
         run: |
           NAMESPACE="${CHART_NAMESPACE}"
           APP_NAME="verifier-web-app"
-          IMAGE="veranalabs/verifier-web:${{ github.sha }}"
+          IMAGE="io2060/avatar-verifier-web:${{ github.sha }}"
           PORT="${VERIFIER_WEB_PORT:-4003}"
 
           cat <<EOF | kubectl apply -f -
@@ -331,5 +331,5 @@ jobs:
           echo "- **Network:** testnet" >> "$GITHUB_STEP_SUMMARY"
           if [ "${{ inputs.step }}" = "deploy-web" ] || [ "${{ inputs.step }}" = "all" ]; then
             echo "- **Web App:** https://app.verifier-web-vs.avatar.hologram.zone" >> "$GITHUB_STEP_SUMMARY"
-            echo "- **Web Image:** veranalabs/verifier-web:${{ github.sha }}" >> "$GITHUB_STEP_SUMMARY"
+            echo "- **Web Image:** io2060/avatar-verifier-web:${{ github.sha }}" >> "$GITHUB_STEP_SUMMARY"
           fi

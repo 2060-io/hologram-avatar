@@ -230,8 +230,8 @@ jobs:
           context: ./issuer-chatbot-vs/issuer-chatbot
           push: true
           tags: |
-            veranalabs/issuer-chatbot:${{ github.sha }}
-            veranalabs/issuer-chatbot:latest
+            io2060/avatar-issuer-chatbot:${{ github.sha }}
+            io2060/avatar-issuer-chatbot:latest
           cache-from: type=gha
           cache-to: type=gha,mode=max
 
@@ -240,7 +240,7 @@ jobs:
         run: |
           NAMESPACE="${CHART_NAMESPACE}"
           APP_NAME="issuer-chatbot-app"
-          IMAGE="veranalabs/issuer-chatbot:${{ github.sha }}"
+          IMAGE="io2060/avatar-issuer-chatbot:${{ github.sha }}"
           PORT="${CHATBOT_PORT:-4000}"
 
           cat <<EOF | kubectl apply -f -
@@ -328,5 +328,5 @@ jobs:
           fi
           echo "- **Network:** testnet" >> "$GITHUB_STEP_SUMMARY"
           if [ "${{ inputs.step }}" = "deploy-chatbot" ] || [ "${{ inputs.step }}" = "all" ]; then
-            echo "- **Chatbot Image:** veranalabs/issuer-chatbot:${{ github.sha }}" >> "$GITHUB_STEP_SUMMARY"
+            echo "- **Chatbot Image:** io2060/avatar-issuer-chatbot:${{ github.sha }}" >> "$GITHUB_STEP_SUMMARY"
           fi

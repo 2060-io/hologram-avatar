@@ -228,8 +228,8 @@ jobs:
           context: ./issuer-web-vs/issuer-web
           push: true
           tags: |
-            veranalabs/issuer-web:${{ github.sha }}
-            veranalabs/issuer-web:latest
+            io2060/avatar-issuer-web:${{ github.sha }}
+            io2060/avatar-issuer-web:latest
           cache-from: type=gha
           cache-to: type=gha,mode=max
 
@@ -238,7 +238,7 @@ jobs:
         run: |
           NAMESPACE="${CHART_NAMESPACE}"
           APP_NAME="issuer-web-app"
-          IMAGE="veranalabs/issuer-web:${{ github.sha }}"
+          IMAGE="io2060/avatar-issuer-web:${{ github.sha }}"
           PORT="${ISSUER_WEB_PORT:-4001}"
 
           cat <<EOF | kubectl apply -f -
@@ -349,5 +349,5 @@ jobs:
           echo "- **Network:** testnet" >> "$GITHUB_STEP_SUMMARY"
           if [ "${{ inputs.step }}" = "deploy-web" ] || [ "${{ inputs.step }}" = "all" ]; then
             echo "- **Web App:** https://app.issuer-web-vs.avatar.hologram.zone" >> "$GITHUB_STEP_SUMMARY"
-            echo "- **Web Image:** veranalabs/issuer-web:${{ github.sha }}" >> "$GITHUB_STEP_SUMMARY"
+            echo "- **Web Image:** io2060/avatar-issuer-web:${{ github.sha }}" >> "$GITHUB_STEP_SUMMARY"
           fi
