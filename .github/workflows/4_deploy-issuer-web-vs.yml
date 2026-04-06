@@ -136,18 +136,17 @@ jobs:
             SERVICE_VTJSC_OUTPUT=$(discover_ecs_vtjsc "$ECS_TR_PUBLIC_URL" "service")
             SERVICE_JSC_URL=$(echo "$SERVICE_VTJSC_OUTPUT" | sed -n '1p')
 
-            SERVICE_LOGO_DATA_URI=$(download_logo_data_uri "$SERVICE_LOGO_URL")
+            export SERVICE_LOGO_DATA_URI=$(download_logo_data_uri "$SERVICE_LOGO_URL")
 
             SERVICE_CLAIMS=$(jq -n \
               --arg id "$CHILD_DID" \
               --arg name "$SERVICE_NAME" \
               --arg type "${SERVICE_TYPE:-IssuerService}" \
               --arg desc "$SERVICE_DESCRIPTION" \
-              --arg logo "$SERVICE_LOGO_DATA_URI" \
               --argjson age "${SERVICE_MIN_AGE:-0}" \
               --arg terms "${SERVICE_TERMS:-}" \
               --arg privacy "${SERVICE_PRIVACY:-}" \
-              '{id: $id, name: $name, type: $type, description: $desc, logo: $logo, minimumAgeRequired: $age, termsAndConditions: $terms, privacyPolicy: $privacy}')
+              '{id: $id, name: $name, type: $type, description: $desc, logo: $ENV.SERVICE_LOGO_DATA_URI, minimumAgeRequired: $age, termsAndConditions: $terms, privacyPolicy: $privacy}')
 
             issue_remote_and_link "$ORG_ADMIN_API" "$CHILD_ADMIN_API" "service" "$SERVICE_JSC_URL" "$CHILD_DID" "$SERVICE_CLAIMS"
           fi

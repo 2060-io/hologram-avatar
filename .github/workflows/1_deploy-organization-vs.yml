@@ -184,17 +184,16 @@ jobs:
           cleanup_ecs_credentials "$ADMIN_API" "$ORG_JSC_URL" "$SERVICE_JSC_URL"
 
           # Obtain Organization credential from ECS TR
-          ORG_LOGO_DATA_URI=$(download_logo_data_uri "$ORG_LOGO_URL")
-          SERVICE_LOGO_DATA_URI=$(download_logo_data_uri "$SERVICE_LOGO_URL")
+          export ORG_LOGO_DATA_URI=$(download_logo_data_uri "$ORG_LOGO_URL")
+          export SERVICE_LOGO_DATA_URI=$(download_logo_data_uri "$SERVICE_LOGO_URL")
 
           ORG_CLAIMS=$(jq -n \
             --arg id "$AGENT_DID" \
             --arg name "$ORG_NAME" \
-            --arg logo "$ORG_LOGO_DATA_URI" \
             --arg rid "$ORG_REGISTRY_ID" \
             --arg addr "$ORG_ADDRESS" \
             --arg cc "$ORG_COUNTRY" \
-            '{id: $id, name: $name, logo: $logo, registryId: $rid, address: $addr, countryCode: $cc}')
+            '{id: $id, name: $name, logo: $ENV.ORG_LOGO_DATA_URI, registryId: $rid, address: $addr, countryCode: $cc}')
 
           issue_remote_and_link "$ECS_TR_ADMIN_API" "$ADMIN_API" "organization" "$ORG_JSC_URL" "$AGENT_DID" "$ORG_CLAIMS"
 
@@ -217,11 +216,10 @@ jobs:
             --arg name "$SERVICE_NAME" \
             --arg type "$SERVICE_TYPE" \
             --arg desc "$SERVICE_DESCRIPTION" \
-            --arg logo "$SERVICE_LOGO_DATA_URI" \
             --argjson age "$SERVICE_MIN_AGE" \
             --arg terms "$SERVICE_TERMS" \
             --arg privacy "$SERVICE_PRIVACY" \
-            '{id: $id, name: $name, type: $type, description: $desc, logo: $logo, minimumAgeRequired: $age, termsAndConditions: $terms, privacyPolicy: $privacy}')
+            '{id: $id, name: $name, type: $type, description: $desc, logo: $ENV.SERVICE_LOGO_DATA_URI, minimumAgeRequired: $age, termsAndConditions: $terms, privacyPolicy: $privacy}')
 
           issue_remote_and_link "$ADMIN_API" "$ADMIN_API" "service" "$SERVICE_JSC_URL" "$AGENT_DID" "$SERVICE_CLAIMS"
 

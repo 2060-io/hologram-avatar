@@ -2,7 +2,7 @@
   "$id": "https://verana-labs.github.io/verifiable-trust-spec/schemas/v4/example.json",
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "title": "Avatar Credential",
-  "description": "An avatar credential schema for decentralized service indentification.",
+  "description": "An avatar credential schema for decentralized service identification.",
   "type": "object",
   "properties": {
     "credentialSubject": {
