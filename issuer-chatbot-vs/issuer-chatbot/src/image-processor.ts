@@ -1,6 +1,7 @@
 import sharp from "sharp";
 
 const MAX_SIZE = 512;
+const PREVIEW_SIZE = 64;
 
 export interface ProcessedImage {
   buffer: Buffer;
@@ -8,6 +9,7 @@ export interface ProcessedImage {
   height: number;
   mimeType: string;
   base64DataUri: string;
+  previewBase64: string;
 }
 
 /**
@@ -35,11 +37,19 @@ export async function processAvatarImage(input: Buffer): Promise<ProcessedImage>
 
   const base64 = outputBuffer.toString("base64");
 
+  // Generate small JPEG thumbnail for Hologram preview field
+  const previewBuffer = await sharp(outputBuffer)
+    .resize(PREVIEW_SIZE, PREVIEW_SIZE, { fit: "cover" })
+    .jpeg({ quality: 70 })
+    .toBuffer();
+  const previewBase64 = previewBuffer.toString("base64");
+
   return {
     buffer: outputBuffer,
     width: finalSize,
     height: finalSize,
     mimeType: "image/png",
     base64DataUri: `data:image/png;base64,${base64}`,
+    previewBase64,
   };
 }

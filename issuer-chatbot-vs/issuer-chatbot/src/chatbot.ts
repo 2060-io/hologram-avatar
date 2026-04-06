@@ -441,7 +441,7 @@ export class Chatbot {
         processed.mimeType
       );
 
-      // Send processed image back to user
+      // Send processed image back to user (with 64x64 thumbnail preview)
       await this.client.sendMediaImage(
         connectionId,
         presignedUrl,
@@ -449,7 +449,8 @@ export class Chatbot {
         processed.width,
         processed.height,
         processed.buffer.length,
-        "Your processed avatar"
+        "Your processed avatar",
+        processed.previewBase64
       );
 
       // Store the base64 data URI in flow data for credential issuance

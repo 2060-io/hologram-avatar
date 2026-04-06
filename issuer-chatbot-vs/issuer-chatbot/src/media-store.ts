@@ -32,10 +32,11 @@ const PRESIGNED_EXPIRY_SECONDS = 24 * 60 * 60; // 24 hours
 
 export class MediaStore {
   private client: Minio.Client;
+  private publicClient: Minio.Client;
   private bucket: string;
-  private publicUrl: string;
 
   constructor(config: MediaStoreConfig) {
+    // Internal client — used for uploads and bucket management
     this.client = new Minio.Client({
       endPoint: config.endpoint,
       port: config.port,
@@ -43,8 +44,23 @@ export class MediaStore {
       accessKey: config.accessKey,
       secretKey: config.secretKey,
     });
+
+    // Public client — used only for presigned URL generation.
+    // The HMAC signature includes the host, so the presigned URL
+    // must be signed against the public endpoint that clients will use.
+    const pub = new URL(config.publicUrl);
+    const pubPort = pub.port
+      ? parseInt(pub.port, 10)
+      : pub.protocol === "https:" ? 443 : 80;
+    this.publicClient = new Minio.Client({
+      endPoint: pub.hostname,
+      port: pubPort,
+      useSSL: pub.protocol === "https:",
+      accessKey: config.accessKey,
+      secretKey: config.secretKey,
+    });
+
     this.bucket = config.bucket;
-    this.publicUrl = config.publicUrl.replace(/\/+$/, "");
   }
 
   /**
@@ -83,22 +99,16 @@ export class MediaStore {
       "Content-Type": mimeType,
     });
 
-    // Generate presigned URL with the public endpoint
-    const url = await this.client.presignedGetObject(
+    // Generate presigned URL using the public-endpoint client so the HMAC
+    // signature matches the host that external clients will actually request.
+    const url = await this.publicClient.presignedGetObject(
       this.bucket,
       objectName,
       PRESIGNED_EXPIRY_SECONDS
     );
 
-    // Replace internal endpoint with public URL in the presigned path
-    // presignedGetObject returns a URL like http://localhost:9000/bucket/obj?X-Amz-...
-    // We need to replace the scheme+host+port with the public URL
-    const parsed = new URL(url);
-    const publicParsed = new URL(this.publicUrl);
-    parsed.protocol = publicParsed.protocol;
-    parsed.hostname = publicParsed.hostname;
-    parsed.port = publicParsed.port;
-    return parsed.toString();
+    console.log(`MinIO presigned URL: ${url}`);
+    return url;
   }
 
   /**

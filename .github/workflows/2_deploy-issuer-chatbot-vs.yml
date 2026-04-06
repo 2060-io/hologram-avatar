@@ -386,6 +386,8 @@ jobs:
                         value: "${MINIO_ACCESS_KEY}"
                       - name: MINIO_ROOT_PASSWORD
                         value: "${MINIO_SECRET_KEY}"
+                      - name: MINIO_BROWSER
+                        value: "off"
                     volumeMounts:
                       - name: data
                         mountPath: /data

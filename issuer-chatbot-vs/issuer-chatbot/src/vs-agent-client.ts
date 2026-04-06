@@ -175,22 +175,25 @@ export class VsAgentClient {
     width: number,
     height: number,
     byteCount: number,
-    description?: string
+    description?: string,
+    preview?: string
   ): Promise<void> {
+    const item: Record<string, unknown> = {
+      uri,
+      mimeType,
+      width,
+      height,
+      byteCount,
+      description: description || "Avatar image",
+    };
+    if (preview) {
+      item.preview = preview;
+    }
     await this.request<unknown>("POST", "/v1/message", {
       type: "media",
       connectionId,
       description: description || "Avatar image",
-      items: [
-        {
-          uri,
-          mimeType,
-          width,
-          height,
-          byteCount,
-          description: description || "Avatar image",
-        },
-      ],
+      items: [item],
     });
   }
 
