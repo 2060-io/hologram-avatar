@@ -80,6 +80,19 @@ jobs:
       # -----------------------------------------------------------------------
       # DEPLOY: Install/upgrade VS Agent via Helm
       # -----------------------------------------------------------------------
+      - name: Create VS Agent DB secret
+        if: inputs.step == 'deploy' || inputs.step == 'all'
+        run: |
+          VSAGENT_DB_PWD="${{ secrets.VSAGENT_DB_PASSWORD }}"
+          if [ -z "$VSAGENT_DB_PWD" ]; then
+            VSAGENT_DB_PWD="$(openssl rand -hex 16)"
+            echo "::warning::VSAGENT_DB_PASSWORD secret not set — using generated password"
+          fi
+          kubectl create secret generic issuer-chatbot-vs-db-secret \
+            --namespace "$CHART_NAMESPACE" \
+            --from-literal=POSTGRES_PASSWORD="$VSAGENT_DB_PWD" \
+            --dry-run=client -o yaml | kubectl apply -f -
+
       - name: Deploy VS Agent via Helm
         if: inputs.step == 'deploy' || inputs.step == 'all'
         run: |
@@ -295,6 +308,8 @@ jobs:
                         value: chatbot
                       - name: POSTGRES_PASSWORD
                         value: "${DB_PASSWORD}"
+                      - name: PGDATA
+                        value: /var/lib/postgresql/data/pgdata
                     volumeMounts:
                       - name: pgdata
                         mountPath: /var/lib/postgresql/data

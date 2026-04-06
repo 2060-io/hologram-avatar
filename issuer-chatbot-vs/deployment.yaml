@@ -34,6 +34,29 @@ ingress:
     tlsSecret: ""
     host: ""
 
+database:
+  enabled: true
+  existingSecret: issuer-chatbot-vs-db-secret
+  secretPwdKey: POSTGRES_PASSWORD
+  user: vsagent
+  resources:
+    requests:
+      cpu: 50m
+      memory: 128Mi
+    limits:
+      cpu: 250m
+      memory: 256Mi
+
+redis:
+  enabled: true
+  resources:
+    requests:
+      cpu: 25m
+      memory: 64Mi
+    limits:
+      cpu: 100m
+      memory: 128Mi
+
 extraEnv:
   - name: ENABLE_PUBLIC_API_SWAGGER
     value: "true"
