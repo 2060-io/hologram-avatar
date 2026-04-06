@@ -104,8 +104,10 @@ export function createWebhookRouter(chatbot: Chatbot): Router {
       } else if (msgType === "media") {
         const items = msg.items || [];
         const firstItem = items[0];
+        console.log(`Media item payload: ${JSON.stringify(firstItem)}`);
         if (firstItem?.uri && firstItem?.mimeType?.startsWith("image/")) {
-          await chatbot.onMediaMessage(connectionId, firstItem.uri, firstItem.mimeType);
+          const ciphering = firstItem.ciphering as { algorithm: string; parameters?: Record<string, unknown> } | undefined;
+          await chatbot.onMediaMessage(connectionId, firstItem.uri, firstItem.mimeType, ciphering);
         } else {
           console.log(`Ignoring media message without image item`);
         }

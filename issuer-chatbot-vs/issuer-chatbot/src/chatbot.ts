@@ -5,7 +5,7 @@ import { VsAgentClient, ContextualMenu, ContextualMenuEntry } from "./vs-agent-c
 import { SchemaInfo } from "./schema-reader";
 import { SessionStore, FlowType, FlowStep } from "./session-store";
 import { Db } from "./db";
-import { MediaStore } from "./media-store";
+import { MediaStore, CipheringInfo } from "./media-store";
 import { processAvatarImage } from "./image-processor";
 
 export class Chatbot {
@@ -99,7 +99,12 @@ export class Chatbot {
     await this.handleInput(connectionId, text.trim());
   }
 
-  async onMediaMessage(connectionId: string, uri: string, mimeType: string): Promise<void> {
+  async onMediaMessage(
+    connectionId: string,
+    uri: string,
+    mimeType: string,
+    ciphering?: CipheringInfo
+  ): Promise<void> {
     console.log(`Media from ${connectionId}: ${mimeType} ${uri}`);
     await this.db.ensureAccount(connectionId);
 
@@ -108,7 +113,7 @@ export class Chatbot {
       flow.step === FlowStep.NEW_AWAIT_IMAGE ||
       flow.step === FlowStep.ISSUE_AWAIT_IMAGE
     ) {
-      await this.flowProcessImage(connectionId, uri);
+      await this.flowProcessImage(connectionId, uri, ciphering);
     } else {
       await this.send(connectionId, "Image received, but no active flow is expecting an image.");
     }
@@ -414,12 +419,16 @@ export class Chatbot {
     await this.send(connectionId, "Please send an image, or tap Skip.");
   }
 
-  private async flowProcessImage(connectionId: string, mediaUri: string): Promise<void> {
+  private async flowProcessImage(
+    connectionId: string,
+    mediaUri: string,
+    ciphering?: CipheringInfo
+  ): Promise<void> {
     try {
       await this.send(connectionId, "Processing your image...");
 
-      // Download from VS-Agent media URI
-      const { buffer } = await this.mediaStore.downloadFromUrl(mediaUri);
+      // Download from VS-Agent media URI (decrypt if ciphering present)
+      const { buffer } = await this.mediaStore.downloadFromUrl(mediaUri, ciphering);
 
       // Process: center crop + resize to 512x512 + PNG
       const processed = await processAvatarImage(buffer);

@@ -1,4 +1,10 @@
 import * as Minio from "minio";
+import { createDecipheriv } from "crypto";
+
+export interface CipheringInfo {
+  algorithm: string;
+  parameters?: Record<string, unknown>;
+}
 
 export interface MediaStoreConfig {
   endpoint: string;
@@ -96,15 +102,87 @@ export class MediaStore {
   }
 
   /**
-   * Download a file from a URL and return it as a Buffer.
+   * Download a file from a URL. If ciphering info is provided, decrypt the
+   * content using the specified algorithm and parameters.
    */
-  async downloadFromUrl(url: string): Promise<{ buffer: Buffer; mimeType: string }> {
+  async downloadFromUrl(
+    url: string,
+    ciphering?: CipheringInfo
+  ): Promise<{ buffer: Buffer; mimeType: string }> {
     const response = await fetch(url);
     if (!response.ok) {
       throw new Error(`Failed to download media from ${url}: ${response.status}`);
     }
     const mimeType = response.headers.get("content-type") || "application/octet-stream";
     const arrayBuffer = await response.arrayBuffer();
-    return { buffer: Buffer.from(arrayBuffer), mimeType };
+    let buffer = Buffer.from(arrayBuffer);
+
+    // Diagnostic logging
+    const header = buffer.subarray(0, Math.min(32, buffer.length)).toString("hex");
+    console.log(
+      `downloadFromUrl: size=${buffer.length} content-type=${mimeType} ` +
+      `header=${header} ciphering=${JSON.stringify(ciphering)}`
+    );
+
+    if (ciphering && ciphering.algorithm) {
+      buffer = this.decrypt(buffer, ciphering);
+      console.log(`downloadFromUrl: decrypted size=${buffer.length}`);
+    }
+
+    return { buffer, mimeType };
+  }
+
+  /**
+   * Decrypt a buffer using the ciphering info from the media-sharing protocol.
+   * Supports AES-256-GCM (and AES-256-CBC as fallback).
+   */
+  private decrypt(data: Buffer, ciphering: CipheringInfo): Buffer<ArrayBuffer> {
+    const algo = ciphering.algorithm.toUpperCase();
+    const params = ciphering.parameters || {};
+
+    // Extract key and IV — they may be hex or base64 encoded
+    const keyRaw = params.key as string | undefined;
+    const ivRaw = (params.iv ?? params.nonce) as string | undefined;
+
+    if (!keyRaw || !ivRaw) {
+      throw new Error(
+        `Ciphering parameters missing key or iv/nonce. ` +
+        `Algorithm: ${algo}, params: ${JSON.stringify(params)}`
+      );
+    }
+
+    const key = this.decodeParam(keyRaw);
+    const iv = this.decodeParam(ivRaw);
+
+    if (algo.includes("GCM") || algo === "AES-GCM" || algo === "AES-256-GCM") {
+      // AES-GCM: last 16 bytes of data are the auth tag
+      const tagLength = 16;
+      if (data.length < tagLength) {
+        throw new Error(`Encrypted data too short for GCM auth tag (${data.length} bytes)`);
+      }
+      const authTag = data.subarray(data.length - tagLength);
+      const ciphertext = data.subarray(0, data.length - tagLength);
+
+      const decipher = createDecipheriv("aes-256-gcm", key, iv);
+      decipher.setAuthTag(authTag);
+      return Buffer.concat([decipher.update(ciphertext), decipher.final()]);
+    } else if (algo.includes("CBC") || algo === "AES-CBC" || algo === "AES-256-CBC") {
+      const decipher = createDecipheriv("aes-256-cbc", key, iv);
+      return Buffer.concat([decipher.update(data), decipher.final()]);
+    } else {
+      throw new Error(`Unsupported ciphering algorithm: ${algo}`);
+    }
+  }
+
+  /**
+   * Decode a parameter that may be hex or base64 encoded.
+   */
+  private decodeParam(value: string): Buffer {
+    // If it looks like hex (only hex chars, even length), decode as hex
+    if (/^[0-9a-fA-F]+$/.test(value) && value.length % 2 === 0) {
+      return Buffer.from(value, "hex");
+    }
+    // Otherwise try base64
+    return Buffer.from(value, "base64");
   }
 }
