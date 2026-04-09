@@ -139,6 +139,14 @@ flows:
       - fafa
   menu:
     items:
+      - id: authenticate
+        labelKey: CREDENTIAL
+        action: authenticate
+        visibleWhen: unauthenticated
+      - id: logout
+        labelKey: LOGOUT
+        action: logout
+        visibleWhen: authenticated
       - id: mcp-config
         labelKey: MCP_CONFIG_MENU
         action: mcp-config
