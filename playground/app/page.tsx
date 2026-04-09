@@ -1,95 +1,67 @@
-"use client";
-
 import {
-  Fingerprint,
-  KeyRound,
-  ScrollText,
-  ShieldCheck,
-  MessageSquare,
-  Globe,
   Building2,
+  MessageSquare,
+  Github,
+  Smartphone,
+  ExternalLink,
   ArrowDown,
-  CheckCircle2,
-  Lock,
-  Users,
-  Zap,
+  Shield,
+  Bot,
+  KeyRound,
 } from "lucide-react";
-import SectionHeading from "./components/SectionHeading";
-import TrustTriangle from "./components/TrustTriangle";
-import ConceptCard from "./components/ConceptCard";
-import DemoSection from "./components/DemoSection";
-import { config } from "./config";
 
 /* ------------------------------------------------------------------ */
-/*  API helpers                                                        */
-/* ------------------------------------------------------------------ */
-
-async function fetchChatbotInvitation(endpoint: string) {
-  const res = await fetch(endpoint);
-  if (!res.ok) throw new Error(`Failed to fetch invitation`);
-  const data = await res.json();
-  return { url: data.url as string };
-}
-
-async function fetchVerifierWebInvitation() {
-  const res = await fetch("/api/verifier-web/invitation", { method: "POST" });
-  if (!res.ok) throw new Error("Failed to create verification request");
-  return (await res.json()) as {
-    sessionId: string;
-    qrDataUrl: string;
-    invitationUrl: string;
-  };
-}
-
-async function pollVerifierWebResult(sessionId: string) {
-  const res = await fetch(`/api/verifier-web/result/${sessionId}`);
-  if (!res.ok) throw new Error("Poll failed");
-  return (await res.json()) as {
-    status: string;
-    claims?: Record<string, string>;
-    error?: string;
-  };
-}
-
-/* ------------------------------------------------------------------ */
-/*  Ecosystem table data                                               */
+/*  Service data                                                       */
 /* ------------------------------------------------------------------ */
 
 const services = [
   {
-    name: "Organization",
+    name: "Organization VS",
     role: "Trust Anchor",
-    desc: "Registers with the Ecosystem, creates a Trust Registry and credential schema",
+    desc: "The root of trust for this ecosystem. Registers with the Verana Network, creates a Trust Registry, and issues Service credentials to child services.",
     icon: Building2,
     color: "text-amber-600 bg-amber-50",
+    endpoint: null,
+    workflow: "1_deploy-organization-vs",
   },
   {
-    name: "Issuer Chatbot",
+    name: "Avatar",
     role: "Credential Issuer",
-    desc: "Issues credentials to users via a conversational DIDComm chatbot",
+    desc: "A DIDComm chatbot that issues verifiable credentials to users through conversational interactions in Hologram Messaging.",
     icon: MessageSquare,
     color: "text-violet-600 bg-violet-50",
+    endpoint: "https://avatar.vs.hologram.zone",
+    workflow: "2_deploy-avatar",
   },
   {
-    name: "Issuer Web",
-    role: "Credential Issuer",
-    desc: "Issues credentials to users via a web form and QR code",
-    icon: Globe,
-    color: "text-violet-600 bg-violet-50",
+    name: "GitHub Agent",
+    role: "AI Agent + MCP",
+    desc: "An AI-powered GitHub assistant with MCP integration. Search repositories, browse issues, pull requests, and code — all through a DIDComm chatbot in Hologram Messaging.",
+    icon: Github,
+    color: "text-gray-800 bg-gray-100",
+    endpoint: "https://github-agent.vs.hologram.zone",
+    workflow: "3_deploy-github-agent",
+  },
+];
+
+const steps = [
+  {
+    number: 1,
+    title: "Install Hologram Messaging",
+    desc: "Download the mobile wallet app. It stores your credentials and communicates with services using DIDComm — an encrypted, peer-to-peer messaging protocol.",
+    icon: Smartphone,
   },
   {
-    name: "Verifier Chatbot",
-    role: "Credential Verifier",
-    desc: "Requests and verifies credential presentations via DIDComm chatbot",
-    icon: MessageSquare,
-    color: "text-purple-600 bg-purple-50",
+    number: 2,
+    title: "Connect to a service",
+    desc: "Visit a service endpoint (e.g. Issuer Chatbot or GitHub Agent) and scan the QR code with Hologram Messaging to establish an encrypted DIDComm connection.",
+    icon: KeyRound,
   },
   {
-    name: "Verifier Web",
-    role: "Credential Verifier",
-    desc: "Requests and verifies credential presentations via web page and QR code",
-    icon: Globe,
-    color: "text-purple-600 bg-purple-50",
+    number: 3,
+    title: "Interact via chat",
+    desc: "The service appears as a contact in Hologram. Chat with it to receive credentials, ask questions, or interact with AI agents — all encrypted end-to-end.",
+    icon: Bot,
   },
 ];
 
@@ -104,121 +76,119 @@ export default function PlaygroundPage() {
       <header className="relative bg-gradient-to-br from-[#764ba2] via-[#667eea] to-[#667eea] text-white">
         <div className="max-w-4xl mx-auto px-6 py-16 text-center">
           <img
-            src="https://verana.io/images/purple/logo.svg"
-            alt="Verana logo"
-            className="h-10 mx-auto mb-6"
+            src="https://hologram.zone/logo.svg"
+            alt="Hologram"
+            className="h-12 mx-auto mb-6 rounded-xl"
           />
           <p className="text-white/70 text-sm font-medium tracking-wider uppercase mb-3">
-            Interactive Learning Environment
+            Hologram Avatar
           </p>
           <h1 className="text-4xl md:text-5xl font-bold mb-4">
-            Verana Playground
+            Verifiable Services Showcase
           </h1>
           <p className="text-lg text-white/80 max-w-2xl mx-auto mb-8">
-            Learn how verifiable credentials work by issuing and presenting them
-            in real time. No prior knowledge required.
+            A collection of Verifiable Services (VS) that demonstrate how
+            AI agents, credential issuers, and chatbots operate within the
+            Hologram + Verana ecosystem — all communicating through encrypted
+            DIDComm channels.
           </p>
           <a
-            href="#section-1"
+            href="#services"
             className="inline-flex items-center gap-2 px-6 py-3 rounded-xl bg-white/15 hover:bg-white/25 backdrop-blur text-white font-medium transition-colors"
           >
-            Get Started <ArrowDown className="w-4 h-4" />
+            Explore Services <ArrowDown className="w-4 h-4" />
           </a>
         </div>
       </header>
 
-      <main className="max-w-4xl mx-auto px-6 py-16 space-y-24">
+      <main className="max-w-4xl mx-auto px-6 py-16 space-y-20">
         {/* ============================================================ */}
-        {/* Section 1 — What Is Verifiable Trust?                        */}
+        {/* About                                                        */}
         {/* ============================================================ */}
-        <section id="section-1">
-          <SectionHeading
-            number={1}
-            title="What Is Verifiable Trust?"
-            subtitle="The core concepts behind decentralized identity"
-          />
-
-          <div className="grid sm:grid-cols-2 gap-4 mb-8">
-            <ConceptCard
-              icon={Fingerprint}
-              title="Verifiable Credential (VC)"
-              description="A tamper-proof digital claim about a person or entity, issued by a trusted party. Think of it as a digital version of an ID card or diploma."
-              color="violet"
-            />
-            <ConceptCard
-              icon={KeyRound}
-              title="Decentralized Identifier (DID)"
-              description="A globally unique identifier that doesn't depend on any central authority. You own and control your own DID."
-              color="blue"
-            />
-            <ConceptCard
-              icon={ScrollText}
-              title="Trust Registry"
-              description="A public record that lists which organizations and services are authorized to issue or verify credentials within an ecosystem."
-              color="amber"
-            />
-            <ConceptCard
-              icon={ShieldCheck}
-              title="Ecosystem Governance"
-              description="Rules and roles that define who can participate and how trust is established, maintained, and revoked."
-              color="purple"
-            />
-          </div>
-
-          <div className="rounded-2xl border border-gray-200 bg-white p-6 shadow-sm">
-            <h3 className="text-center text-sm font-semibold text-gray-500 uppercase tracking-wider mb-2">
-              The Triangle of Trust
-            </h3>
-            <TrustTriangle />
-            <p className="text-sm text-gray-500 text-center max-w-md mx-auto">
-              The <strong>Issuer</strong> creates a credential. The{" "}
-              <strong>Holder</strong> stores it in their wallet. The{" "}
-              <strong>Verifier</strong> confirms it — all anchored by a{" "}
-              <strong>Trust Registry</strong>.
+        <section>
+          <h2 className="text-2xl font-bold text-gray-900 mb-2">
+            What is this?
+          </h2>
+          <p className="text-gray-600 leading-relaxed mb-4">
+            <strong>Hologram Avatar</strong> is a repository that packages
+            multiple <em>Verifiable Services</em> (VS) into a single
+            deployable ecosystem. Each service runs as a Kubernetes deployment
+            backed by the{" "}
+            <a
+              href="https://github.com/verana-labs/vs-agent"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="text-violet-600 hover:underline"
+            >
+              VS Agent
+            </a>{" "}
+            — a DIDComm-enabled agent framework — and is registered in the{" "}
+            <a
+              href="https://verana.io"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="text-violet-600 hover:underline"
+            >
+              Verana Network
+            </a>{" "}
+            Trust Registry.
+          </p>
+          <div className="flex items-start gap-3 rounded-xl bg-violet-50 border border-violet-200 p-4">
+            <Shield className="w-5 h-5 text-violet-600 shrink-0 mt-0.5" />
+            <p className="text-sm text-violet-800">
+              Every service in this ecosystem holds a <strong>Service
+              credential</strong> issued by the Organization trust anchor,
+              making its identity and permissions publicly verifiable on the
+              Verana blockchain.
             </p>
           </div>
         </section>
 
         {/* ============================================================ */}
-        {/* Section 2 — The Demo Ecosystem                               */}
+        {/* Services                                                     */}
         {/* ============================================================ */}
-        <section id="section-2">
-          <SectionHeading
-            number={2}
-            title="The Demo Ecosystem"
-            subtitle="Five services that form a complete trust ecosystem"
-          />
-
-          <p className="text-gray-600 mb-6 leading-relaxed">
-            This playground connects to five live services. The{" "}
-            <strong>Organization</strong> is the trust anchor — it registers
-            with the Verana Ecosystem, creates a Trust Registry and credential
-            schema. The four child services inherit trust from it: two{" "}
-            <strong>Issuers</strong> that create credentials and two{" "}
-            <strong>Verifiers</strong> that validate them.
+        <section id="services">
+          <h2 className="text-2xl font-bold text-gray-900 mb-2">
+            Services
+          </h2>
+          <p className="text-gray-600 mb-6">
+            The ecosystem currently includes the following services:
           </p>
 
-          <div className="space-y-3">
+          <div className="space-y-4">
             {services.map((s) => (
               <div
                 key={s.name}
-                className="flex items-start gap-4 rounded-xl border border-gray-200 bg-white p-4 shadow-sm"
+                className="rounded-xl border border-gray-200 bg-white p-5 shadow-sm"
               >
-                <div
-                  className={`w-10 h-10 rounded-lg flex items-center justify-center shrink-0 ${s.color}`}
-                >
-                  <s.icon className="w-5 h-5" />
-                </div>
-                <div>
-                  <div className="flex items-baseline gap-2">
-                    <span className="font-semibold text-gray-900">
-                      {s.name}
-                    </span>
-                    <span className="text-xs text-gray-400 font-medium">
-                      {s.role}
-                    </span>
+                <div className="flex items-start gap-4">
+                  <div
+                    className={`w-10 h-10 rounded-lg flex items-center justify-center shrink-0 ${s.color}`}
+                  >
+                    <s.icon className="w-5 h-5" />
                   </div>
-                  <p className="text-sm text-gray-500 mt-0.5">{s.desc}</p>
+                  <div className="flex-1">
+                    <div className="flex items-baseline gap-2 mb-1">
+                      <span className="font-semibold text-gray-900">
+                        {s.name}
+                      </span>
+                      <span className="text-xs text-gray-400 font-medium">
+                        {s.role}
+                      </span>
+                    </div>
+                    <p className="text-sm text-gray-500">{s.desc}</p>
+                    {s.endpoint && (
+                      <a
+                        href={s.endpoint}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="inline-flex items-center gap-1 mt-2 text-sm text-violet-600 hover:underline"
+                      >
+                        <ExternalLink className="w-3.5 h-3.5" />
+                        {s.endpoint.replace("https://", "")}
+                      </a>
+                    )}
+                  </div>
                 </div>
               </div>
             ))}
@@ -226,31 +196,50 @@ export default function PlaygroundPage() {
         </section>
 
         {/* ============================================================ */}
-        {/* Section 3 — Getting Started                                  */}
+        {/* How to use                                                   */}
         {/* ============================================================ */}
-        <section id="section-3">
-          <SectionHeading
-            number={3}
-            title="Getting Started"
-            subtitle="Install Hologram Messaging to participate in the demos"
-          />
+        <section id="how-to-use">
+          <h2 className="text-2xl font-bold text-gray-900 mb-2">
+            How to use
+          </h2>
+          <p className="text-gray-600 mb-6">
+            To interact with any service in this ecosystem you need{" "}
+            <strong>Hologram Messaging</strong> — a mobile wallet that manages
+            your credentials and DIDComm connections.
+          </p>
+
+          <div className="space-y-4 mb-8">
+            {steps.map((step) => (
+              <div
+                key={step.number}
+                className="flex items-start gap-4 rounded-xl border border-gray-200 bg-white p-5 shadow-sm"
+              >
+                <div className="w-8 h-8 rounded-full bg-violet-100 text-violet-700 flex items-center justify-center font-bold text-sm shrink-0">
+                  {step.number}
+                </div>
+                <div>
+                  <p className="font-semibold text-gray-900 mb-0.5">
+                    {step.title}
+                  </p>
+                  <p className="text-sm text-gray-500">{step.desc}</p>
+                </div>
+              </div>
+            ))}
+          </div>
 
           <div className="rounded-2xl border border-gray-200 bg-white p-6 shadow-sm">
             <div className="flex flex-col sm:flex-row items-center gap-6">
               <img
                 src="https://hologram.zone/logo.svg"
                 alt="Hologram Messaging"
-                className="w-20 h-20 rounded-2xl shrink-0"
+                className="w-16 h-16 rounded-2xl shrink-0"
               />
               <div className="flex-1 text-center sm:text-left">
                 <h3 className="text-lg font-bold text-gray-900 mb-1">
-                  Hologram Messaging
+                  Download Hologram Messaging
                 </h3>
                 <p className="text-sm text-gray-500 mb-4">
-                  A mobile wallet that stores your credentials and communicates
-                  with services using{" "}
-                  <strong>DIDComm</strong> — an encrypted, peer-to-peer
-                  messaging protocol. No central server ever sees your data.
+                  Available on iOS and Android. Free to use.
                 </p>
                 <div className="flex flex-wrap justify-center sm:justify-start gap-3">
                   <a
@@ -276,184 +265,35 @@ export default function PlaygroundPage() {
         </section>
 
         {/* ============================================================ */}
-        {/* Section 4 — Demo 1: Chatbot Flow                            */}
+        {/* Repository                                                   */}
         {/* ============================================================ */}
-        <section id="section-4">
-          <SectionHeading
-            number={4}
-            title="Demo 1: Chatbot Flow"
-            subtitle="Obtain a credential from the Issuer Chatbot, then present it to the Verifier Chatbot"
-          />
-
-          <p className="text-gray-600 mb-6 leading-relaxed">
-            In this demo you&apos;ll use <strong>DIDComm messaging</strong> — a
-            secure, encrypted chat channel between your wallet and the service.
-            Scan a QR code to connect, then follow the chatbot conversation to
-            receive and present a credential.
+        <section>
+          <h2 className="text-2xl font-bold text-gray-900 mb-2">
+            Repository
+          </h2>
+          <p className="text-gray-600 mb-4">
+            Each service has its own directory with deployment configuration,
+            Docker Compose for local development, and a GitHub Actions workflow
+            for CI/CD.
           </p>
-
-          <div className="grid md:grid-cols-2 gap-6">
-            <DemoSection
-              title="Step A — Get a Credential"
-              description="Connect to the Issuer Chatbot to receive a verifiable credential."
-              steps={[
-                "Tap \"Generate QR Code\" below",
-                "Open Hologram Messaging and scan the QR code",
-                "Follow the chatbot — it will ask for your details",
-                "Your credential is stored in your wallet",
-              ]}
-              fetchInvitation={() =>
-                fetchChatbotInvitation("/api/issuer-chatbot/invitation")
-              }
-              resultLabel="Connected! Follow the chat in Hologram."
-            />
-
-            <DemoSection
-              title="Step B — Present Your Credential"
-              description="Connect to the Verifier Chatbot and prove your identity."
-              steps={[
-                "Tap \"Generate QR Code\" below",
-                "Scan the QR code with Hologram Messaging",
-                "The verifier requests a proof — approve it in your wallet",
-                "The verifier confirms your credential without contacting the issuer",
-              ]}
-              fetchInvitation={() =>
-                fetchChatbotInvitation("/api/verifier-chatbot/invitation")
-              }
-              resultLabel="Connected! Complete the verification in Hologram."
-            />
+          <div className="rounded-xl border border-gray-200 bg-gray-900 text-gray-300 p-5 font-mono text-sm leading-relaxed overflow-x-auto">
+            <pre>{`hologram-avatar/
+  common/             # Shared shell helpers
+  organization-vs/    # Trust anchor (workflow 1)
+  avatar/             # Credential issuer chatbot (workflow 2)
+  github-agent/       # GitHub AI agent with MCP (workflow 3)
+  playground/         # This landing page (workflow 6)`}</pre>
           </div>
-
-          <div className="mt-6 rounded-xl bg-violet-50 border border-violet-200 p-4">
-            <p className="text-sm text-violet-800">
-              <strong>What happened?</strong> You created an encrypted DIDComm
-              connection with each service. The issuer chatbot asked for your
-              details and issued a signed credential. The verifier chatbot
-              requested a proof — your wallet asked for your consent before
-              sharing any data.
-            </p>
-          </div>
-        </section>
-
-        {/* ============================================================ */}
-        {/* Section 5 — Demo 2: Web Flow                                */}
-        {/* ============================================================ */}
-        <section id="section-5">
-          <SectionHeading
-            number={5}
-            title="Demo 2: Web Flow"
-            subtitle="Issue and verify credentials through web interfaces"
-          />
-
-          <p className="text-gray-600 mb-6 leading-relaxed">
-            This demo uses <strong>Out-of-Band (OOB) invitations</strong> — the
-            web page generates a one-time QR code. Scanning it starts a DIDComm
-            exchange behind the scenes. For the verifier, once you approve the
-            proof request, the presented attributes appear live on this page.
-          </p>
-
-          <div className="grid md:grid-cols-2 gap-6">
-            <DemoSection
-              title="Step A — Issue via Web"
-              description="Fill in the form on the Issuer Web, then scan the QR code to receive a credential."
-              steps={[
-                "Tap \"Open Issuer Web\" below",
-                "Fill in the credential form and submit",
-                "Scan the generated QR code with Hologram Messaging",
-                "Accept the credential offer in your wallet",
-              ]}
-              externalUrl={config.issuerWebUrl}
-            />
-
-            <DemoSection
-              title="Step B — Verify via Web"
-              description="Present your credential and see the verified attributes appear live."
-              steps={[
-                "Tap \"Generate QR Code\" below",
-                "Scan the QR code with Hologram Messaging",
-                "Approve the proof request in your wallet",
-                "Verified attributes appear here automatically",
-              ]}
-              fetchInvitation={() => fetchVerifierWebInvitation()}
-              pollResult={(sessionId) => pollVerifierWebResult(sessionId)}
-              resultLabel="Credential Verified!"
-            />
-          </div>
-
-          <div className="mt-6 rounded-xl bg-purple-50 border border-purple-200 p-4">
-            <p className="text-sm text-purple-800">
-              <strong>What happened?</strong> The web verifier created a
-              presentation request and encoded it as a QR code. Your wallet
-              decrypted the request, asked for your consent, then sent a
-              cryptographic proof. The verifier confirmed the credential&apos;s
-              authenticity without ever contacting the issuer.
-            </p>
-          </div>
-        </section>
-
-        {/* ============================================================ */}
-        {/* Section 6 — What Just Happened? (Recap)                     */}
-        {/* ============================================================ */}
-        <section id="section-6">
-          <SectionHeading
-            number={6}
-            title="What Just Happened?"
-            subtitle="A summary of what you experienced"
-          />
-
-          <div className="grid sm:grid-cols-2 gap-4">
-            <div className="rounded-xl border border-gray-200 bg-white p-5 shadow-sm flex gap-4">
-              <CheckCircle2 className="w-6 h-6 text-violet-500 shrink-0 mt-0.5" />
-              <div>
-                <p className="font-semibold text-gray-900 text-sm mb-1">
-                  Trust Established
-                </p>
-                <p className="text-sm text-gray-500">
-                  You connected to services registered in a Trust Registry —
-                  their authority to issue or verify was publicly verifiable.
-                </p>
-              </div>
-            </div>
-
-            <div className="rounded-xl border border-gray-200 bg-white p-5 shadow-sm flex gap-4">
-              <Lock className="w-6 h-6 text-blue-500 shrink-0 mt-0.5" />
-              <div>
-                <p className="font-semibold text-gray-900 text-sm mb-1">
-                  Credential Received
-                </p>
-                <p className="text-sm text-gray-500">
-                  You received a Verifiable Credential — a digitally signed
-                  claim stored only on your device. No central database holds
-                  it.
-                </p>
-              </div>
-            </div>
-
-            <div className="rounded-xl border border-gray-200 bg-white p-5 shadow-sm flex gap-4">
-              <Users className="w-6 h-6 text-purple-500 shrink-0 mt-0.5" />
-              <div>
-                <p className="font-semibold text-gray-900 text-sm mb-1">
-                  Proof Presented
-                </p>
-                <p className="text-sm text-gray-500">
-                  You presented your credential to a verifier who confirmed its
-                  authenticity without calling the issuer.
-                </p>
-              </div>
-            </div>
-
-            <div className="rounded-xl border border-gray-200 bg-white p-5 shadow-sm flex gap-4">
-              <Zap className="w-6 h-6 text-amber-500 shrink-0 mt-0.5" />
-              <div>
-                <p className="font-semibold text-gray-900 text-sm mb-1">
-                  Encrypted & Peer-to-Peer
-                </p>
-                <p className="text-sm text-gray-500">
-                  All communication happened over DIDComm — encrypted,
-                  peer-to-peer, no intermediaries.
-                </p>
-              </div>
-            </div>
+          <div className="mt-4">
+            <a
+              href="https://github.com/2060-io/hologram-avatar"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-flex items-center gap-2 text-sm text-violet-600 hover:underline"
+            >
+              <Github className="w-4 h-4" />
+              View on GitHub
+            </a>
           </div>
         </section>
       </main>
@@ -461,7 +301,16 @@ export default function PlaygroundPage() {
       {/* Footer */}
       <footer className="border-t border-gray-200 py-8 text-center text-sm text-gray-400">
         <p>
-          Verana Playground &middot; Powered by{" "}
+          Hologram Avatar &middot; Powered by{" "}
+          <a
+            href="https://hologram.zone"
+            className="text-violet-500 hover:underline"
+            target="_blank"
+            rel="noopener noreferrer"
+          >
+            Hologram
+          </a>
+          {" "}&amp;{" "}
           <a
             href="https://verana.io"
             className="text-violet-500 hover:underline"

@@ -2,9 +2,9 @@ import type { Metadata } from "next";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: "Verana Playground",
+  title: "Hologram Avatar — Verifiable Services Showcase",
   description:
-    "An interactive guide to Verifiable Trust — learn how credentials are issued, held, and verified.",
+    "A collection of Verifiable Services demonstrating AI agents, credential issuers, and chatbots within the Hologram + Verana ecosystem.",
 };
 
 export default function RootLayout({

@@ -51,8 +51,6 @@ jobs:
           tags: |
             io2060/avatar-playground:${{ github.sha }}
             io2060/avatar-playground:latest
-          build-args: |
-            NEXT_PUBLIC_ISSUER_WEB_URL=https://app.issuer-web-vs.avatar.hologram.zone
           cache-from: type=gha
           cache-to: type=gha,mode=max
 
@@ -64,7 +62,7 @@ jobs:
           NAMESPACE="${{ secrets.K8S_NAMESPACE }}"
           APP_NAME="playground"
           IMAGE="io2060/avatar-playground:${{ github.sha }}"
-          HOST="avatar.hologram.zone"
+          HOST="vs.hologram.zone"
           PORT=3000
 
           cat <<EOF | kubectl apply -f -
@@ -95,7 +93,7 @@ jobs:
                       - containerPort: ${PORT}
                     env:
                       - name: ISSUER_CHATBOT_VS_ADMIN_URL
-                        value: "http://issuer-chatbot-vs:3000"
+                        value: "http://avatar:3000"
                       - name: VERIFIER_CHATBOT_VS_ADMIN_URL
                         value: "http://verifier-chatbot-vs:3000"
                       - name: VERIFIER_WEB_URL
@@ -151,5 +149,5 @@ jobs:
           echo "## Playground" >> "$GITHUB_STEP_SUMMARY"
           echo "" >> "$GITHUB_STEP_SUMMARY"
           echo "- **Network:** testnet" >> "$GITHUB_STEP_SUMMARY"
-          echo "- **URL:** https://avatar.hologram.zone" >> "$GITHUB_STEP_SUMMARY"
+          echo "- **URL:** https://vs.hologram.zone" >> "$GITHUB_STEP_SUMMARY"
           echo "- **Image:** io2060/avatar-playground:${{ github.sha }}" >> "$GITHUB_STEP_SUMMARY"

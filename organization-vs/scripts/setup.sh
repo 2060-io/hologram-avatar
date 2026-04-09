@@ -361,7 +361,7 @@ fi
 # STEP 5: AnonCreds credential definition — SKIPPED
 # =============================================================================
 # NOTE: organization-vs no longer creates a credential definition.
-# Each issuer (issuer-chatbot-vs, issuer-web-vs) creates its own credential
+# Each issuer (avatar, issuer-web-vs) creates its own credential
 # definition pointing to the jsonSchemaCredential published by this service.
 
 log "Step 5: AnonCreds credential definition — skipped (issuers create their own)"
