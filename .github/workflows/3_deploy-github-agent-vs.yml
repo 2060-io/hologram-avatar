@@ -93,6 +93,14 @@ jobs:
             --from-literal=POSTGRES_PASSWORD="$VSAGENT_DB_PWD" \
             --dry-run=client -o yaml | kubectl apply -f -
 
+      - name: Create agent pack ConfigMap
+        if: inputs.step == 'deploy' || inputs.step == 'all'
+        run: |
+          kubectl create configmap github-agent-vs-agent-pack \
+            --namespace "$CHART_NAMESPACE" \
+            --from-file=agent-pack.yaml=github-agent-vs/agent-pack.yaml \
+            --dry-run=client -o yaml | kubectl apply -f -
+
       - name: Deploy via Helm
         if: inputs.step == 'deploy' || inputs.step == 'all'
         run: |
