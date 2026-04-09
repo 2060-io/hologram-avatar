@@ -1,54 +1,53 @@
-# Verana Demos
+# Hologram Avatar
 
-Demo ecosystem with five Verifiable Services deployed via GitHub Actions to Kubernetes.
+A collection of Verifiable Services (VS) deployed via GitHub Actions to Kubernetes, showcasing AI agents, credential issuers, and chatbots within the Hologram + Verana ecosystem.
+
+**Landing page:** [vs.hologram.zone](https://vs.hologram.zone)
 
 ## Architecture
 
 ```
-organization-vs          ← Parent organization (ECS credentials, Trust Registry, schema)
-├── avatar    ← Issues credentials via DIDComm chatbot
-├── issuer-web-vs        ← Issues credentials via web form + QR code
-├── verifier-chatbot-vs  ← Verifies credentials via DIDComm chatbot
-└── verifier-web-vs      ← Verifies credentials via web page + QR code
+organization-vs   ← Trust anchor (ECS credentials, Trust Registry, schema)
+├── avatar        ← Issues credentials via DIDComm chatbot
+└── github-agent  ← AI-powered GitHub assistant with MCP integration
 ```
 
-**organization-vs** is the parent: it obtains Organization + Service credentials from the ECS Trust Registry, creates its own Trust Registry with a custom schema, and registers an AnonCreds credential definition.
+**organization-vs** is the trust anchor: it obtains Organization + Service credentials from the ECS Trust Registry, creates its own Trust Registry with a custom schema, and registers an AnonCreds credential definition.
 
-Child services obtain a **Service credential** from organization-vs, then:
-- **Issuers** obtain an ISSUER permission (VP flow) for the organization-vs schema
-- **Verifiers** self-create a VERIFIER permission (OPEN mode)
-
-All services discover the **AnonCreds credential definition** by querying `/resources?resourceType=anonCredsCredDef` on the public endpoint of organization-vs.
+Child services obtain a **Service credential** from organization-vs, making their identity and permissions publicly verifiable on the Verana blockchain.
 
 ## Services
 
-| Service | Role | App Port |
-|---------|------|----------|
-| `organization-vs` | Parent org | — |
-| `avatar` | Issuer (chatbot) | 4000 |
-| `issuer-web-vs` | Issuer (web) | 4001 |
-| `verifier-chatbot-vs` | Verifier (chatbot) | 4002 |
-| `verifier-web-vs` | Verifier (web) | 4003 |
+| Service | Role | Ingress | Chart |
+|---------|------|---------|-------|
+| `organization-vs` | Trust anchor | `organization-vs.vs.hologram.zone` | `vs-agent-chart` |
+| `avatar` | Credential issuer (chatbot) | `avatar.vs.hologram.zone` | `vs-agent-chart` |
+| `github-agent` | AI agent + MCP | `github-agent.vs.hologram.zone` | `hologram-generic-ai-agent-chart` |
+| `playground` | Landing page | `vs.hologram.zone` | — (raw K8s) |
 
 ## Directory Structure
 
 ```
+hologram-avatar/
+  common/               # Shared shell helpers
+  organization-vs/      # Trust anchor (workflow 1)
+  avatar/               # Credential issuer chatbot (workflow 2)
+  github-agent/         # GitHub AI agent with MCP (workflow 3)
+  playground/           # Landing page (workflow 6)
+```
+
+Each service directory follows the same structure:
+
+```
 <service>/
-  config.env            # All configuration for this service
+  config.env            # Configuration for local dev and CI/CD
   deployment.yaml       # Helm chart values for K8s deployment
-  ids.env               # Persisted IDs (credential def, schema, etc.)
-  schema.json           # (organization-vs only) Custom credential schema
-  data/                 # Claim data for credential issuance
+  agent-pack.yaml       # Agent pack definition (github-agent only)
   scripts/
-    setup.sh            # Full local setup (deploy agent, get credentials, etc.)
-    start.sh            # Start the application (child services only)
+    setup.sh            # Full local setup (deploy agent, get credentials)
+    start.sh            # Start the service locally
   docker/
-    docker-compose.yml  # Local dev containers (VS Agent + app)
-  <app>/                # Application source (TypeScript, child services only)
-    src/
-    Dockerfile
-    package.json
-    tsconfig.json
+    docker-compose.yml  # Local dev containers (VS Agent + dependencies)
 ```
 
 ## GitHub Actions Workflows
@@ -58,23 +57,31 @@ Workflows are numbered to indicate deployment order. **Run them in order** when 
 | # | Workflow | Steps |
 |---|---------|-------|
 | 1 | Deploy Organization VS | `deploy` · `get-ecs-credentials` · `create-trust-registry` · `all` |
-| 2 | Deploy Issuer Chatbot VS | `deploy` · `get-credentials` · `deploy-chatbot` · `all` |
-| 3 | Deploy Verifier Chatbot VS | `deploy` · `get-credentials` · `deploy-chatbot` · `all` |
-| 4 | Deploy Issuer Web VS | `deploy` · `get-credentials` · `deploy-web` · `all` |
-| 5 | Deploy Verifier Web VS | `deploy` · `get-credentials` · `deploy-web` · `all` |
+| 2 | Deploy Avatar | `deploy` · `get-credentials` · `deploy-chatbot` · `all` |
+| 3 | Deploy GitHub Agent | `deploy` · `get-credentials` · `all` |
+| 6 | Deploy Playground | — (triggered on push to main) |
 
 ### Deployment
 
-1. Create a branch: `vs/testnet-<name>` or `vs/devnet-<name>`
-2. Edit each service's `config.env` and `deployment.yaml` as needed
-3. Run workflows **in order** from GitHub Actions (manual dispatch)
+1. Run workflows **in order** from GitHub Actions (manual dispatch on `main` branch)
+2. Each workflow validates the branch, deploys via Helm, and obtains credentials automatically
 
 ### Ingresses
 
-- `<did-domain>` — VS Agent public endpoint (DID document, DIDComm, resources)
-- `app.<did-domain>` — Web/chatbot application (child services)
+All services are deployed under the `vs.hologram.zone` domain:
+
+- `organization-vs.vs.hologram.zone` — Organization VS Agent
+- `avatar.vs.hologram.zone` — Avatar VS Agent + Chatbot
+- `github-agent.vs.hologram.zone` — GitHub Agent VS Agent + Chatbot
+- `vs.hologram.zone` — Playground landing page
 
 ## Local Development
+
+### Prerequisites
+
+- Docker and Docker Compose
+- ngrok (authenticated)
+- `curl`, `jq`
 
 ### 1. Start organization-vs
 
@@ -83,12 +90,23 @@ source organization-vs/config.env
 ./organization-vs/scripts/setup.sh
 ```
 
-### 2. Start a child service (e.g., avatar)
+### 2. Start a child service
+
+**Avatar (credential issuer):**
 
 ```bash
 source avatar/config.env
 ./avatar/scripts/setup.sh
 ./avatar/scripts/start.sh
+```
+
+**GitHub Agent (AI agent):**
+
+```bash
+source github-agent/config.env
+export OPENAI_API_KEY=sk-...
+./github-agent/scripts/setup.sh
+./github-agent/scripts/start.sh
 ```
 
 > **Note:** Only one ngrok tunnel can run at a time on the free plan. For local development with multiple services, deploy organization-vs to K8s first, then point child services to its public URL via `ORG_VS_PUBLIC_URL` and `ORG_VS_ADMIN_URL`.
