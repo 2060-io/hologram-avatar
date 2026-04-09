@@ -1,0 +1,194 @@
+name: 3_ Deploy GitHub Agent VS
+
+on:
+  workflow_dispatch:
+    inputs:
+      step:
+        description: "Which step to run"
+        required: true
+        type: choice
+        options:
+          - deploy
+          - get-credentials
+          - all
+        default: all
+
+jobs:
+  deploy-github-agent-vs:
+    name: Deploy GitHub Agent VS
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Validate branch
+        run: |
+          if [ "${GITHUB_REF_NAME}" != "main" ]; then
+            echo "::error::This workflow can only run on the main branch (current: ${GITHUB_REF_NAME})"
+            exit 1
+          fi
+          echo "NETWORK=testnet" >> "$GITHUB_ENV"
+
+      - name: Load configuration
+        run: |
+          set -a
+          source github-agent-vs/config.env
+          set +a
+          while IFS= read -r line; do
+            key="${line%%=*}"
+            echo "${key}=${!key}" >> "$GITHUB_ENV"
+          done < <(grep -E '^[A-Z_]+=' github-agent-vs/config.env)
+
+      - name: Parse deployment.yaml
+        run: |
+          CHART_SOURCE=$(yq '.chartSource' github-agent-vs/deployment.yaml)
+          CHART_VERSION=$(yq '.chartVersion' github-agent-vs/deployment.yaml)
+          CHART_NAMESPACE="${{ secrets.K8S_NAMESPACE }}"
+          RELEASE_NAME=$(yq '.nameOverride' github-agent-vs/deployment.yaml)
+          echo "CHART_SOURCE=${CHART_SOURCE}" >> "$GITHUB_ENV"
+          echo "CHART_VERSION=${CHART_VERSION}" >> "$GITHUB_ENV"
+          echo "CHART_NAMESPACE=${CHART_NAMESPACE}" >> "$GITHUB_ENV"
+          echo "RELEASE_NAME=${RELEASE_NAME}" >> "$GITHUB_ENV"
+
+      - name: Set up kubeconfig
+        run: |
+          mkdir -p ~/.kube
+          cat > ~/.kube/config <<'KUBEEOF'
+          ${{ secrets.OVH_KUBECONFIG }}
+          KUBEEOF
+
+      - name: Install kubectl
+        uses: azure/setup-kubectl@v4
+        with:
+          version: 'v1.29.9'
+
+      - name: Install veranad
+        run: |
+          VERANAD_VERSION="v0.9.4"
+          curl -sfL "https://github.com/verana-labs/verana/releases/download/${VERANAD_VERSION}/veranad-linux-amd64" \
+            -o /usr/local/bin/veranad
+          chmod +x /usr/local/bin/veranad
+          veranad version
+
+      - name: Import account from mnemonic
+        run: |
+          echo "${{ secrets.VS_DEMO_MNEMONIC }}" | veranad keys add "${{ env.USER_ACC }}" --recover --keyring-backend test
+
+      # -----------------------------------------------------------------------
+      # DEPLOY: Install/upgrade via Helm (hologram-generic-ai-agent-chart)
+      # -----------------------------------------------------------------------
+      - name: Create K8s secrets
+        if: inputs.step == 'deploy' || inputs.step == 'all'
+        run: |
+          NAMESPACE="${CHART_NAMESPACE}"
+
+          # VS Agent DB secret
+          VSAGENT_DB_PWD="${{ secrets.GH_AGENT_VSAGENT_DB_PASSWORD }}"
+          if [ -z "$VSAGENT_DB_PWD" ]; then
+            VSAGENT_DB_PWD="$(openssl rand -hex 16)"
+            echo "::warning::GH_AGENT_VSAGENT_DB_PASSWORD secret not set — using generated password"
+          fi
+          kubectl create secret generic github-agent-vs-db-secret \
+            --namespace "$NAMESPACE" \
+            --from-literal=POSTGRES_PASSWORD="$VSAGENT_DB_PWD" \
+            --dry-run=client -o yaml | kubectl apply -f -
+
+      - name: Deploy via Helm
+        if: inputs.step == 'deploy' || inputs.step == 'all'
+        run: |
+          # Strip chart metadata before passing to Helm
+          yq 'del(.chartSource, .chartVersion)' github-agent-vs/deployment.yaml > /tmp/helm-values.yaml
+
+          helm upgrade --install "$RELEASE_NAME" "$CHART_SOURCE" \
+            --version "$CHART_VERSION" \
+            --namespace "$CHART_NAMESPACE" --create-namespace \
+            --values /tmp/helm-values.yaml \
+            --set chatbot.secret.OPENAI_API_KEY="${{ secrets.GH_AGENT_OPENAI_API_KEY }}" \
+            --set chatbot.secret.MCP_CONFIG_ENCRYPTION_KEY="${{ secrets.GH_AGENT_MCP_CONFIG_ENCRYPTION_KEY }}" \
+            --set chatbot.secret.POSTGRES_PASSWORD="${{ secrets.GH_AGENT_POSTGRES_PASSWORD }}" \
+            --set postgres.secret.POSTGRES_PASSWORD="${{ secrets.GH_AGENT_POSTGRES_PASSWORD }}" \
+            --set vs-agent-chart.extraEnv[0].name=AGENT_WALLET_ID \
+            --set vs-agent-chart.extraEnv[0].value="GitHub Agent Avatar" \
+            --set vs-agent-chart.extraEnv[1].name=AGENT_WALLET_KEY \
+            --set vs-agent-chart.extraEnv[1].value="${{ secrets.GH_AGENT_WALLET_KEY }}" \
+            --wait --timeout 300s
+
+      # -----------------------------------------------------------------------
+      # GET-CREDENTIALS: Obtain Service credential from organization-vs
+      # -----------------------------------------------------------------------
+      - name: Port-forward GitHub Agent VS Agent
+        if: inputs.step == 'get-credentials' || inputs.step == 'all'
+        run: |
+          # The vs-agent service name inside the chart
+          kubectl port-forward -n "$CHART_NAMESPACE" "svc/github-agent-vs" 3002:3000 &
+          echo "CHILD_PF_PID=$!" >> "$GITHUB_ENV"
+          sleep 5
+          curl -sf http://localhost:3002/v1/agent > /dev/null || {
+            echo "::error::Port-forward to GitHub Agent VS-Agent failed"
+            exit 1
+          }
+          echo "Port-forward to GitHub Agent VS-Agent on :3002"
+
+      - name: Port-forward organization VS Agent
+        if: inputs.step == 'get-credentials' || inputs.step == 'all'
+        run: |
+          kubectl port-forward -n "$CHART_NAMESPACE" "svc/organization-vs" 3000:3000 &
+          echo "ORG_PF_PID=$!" >> "$GITHUB_ENV"
+          sleep 5
+          curl -sf http://localhost:3000/v1/agent > /dev/null || {
+            echo "::error::Port-forward to organization VS-Agent failed"
+            exit 1
+          }
+          echo "Port-forward to organization VS-Agent on :3000"
+
+      - name: Get Service credential
+        if: inputs.step == 'get-credentials' || inputs.step == 'all'
+        run: |
+          ORG_ADMIN_API="http://localhost:3000"
+          CHILD_ADMIN_API="http://localhost:3002"
+          source common/common.sh
+          set_network_vars "$NETWORK"
+
+          CHILD_DID=$(curl -sf "${CHILD_ADMIN_API}/v1/agent" | jq -r '.publicDid')
+          echo "GitHub Agent DID: $CHILD_DID"
+
+          CHILD_PUBLIC_URL="https://github-agent-vs.avatar.hologram.zone"
+          if has_linked_vp "$CHILD_PUBLIC_URL" "service"; then
+            ok "Service credential already linked — skipping"
+          else
+            SERVICE_VTJSC_OUTPUT=$(discover_ecs_vtjsc "$ECS_TR_PUBLIC_URL" "service")
+            SERVICE_JSC_URL=$(echo "$SERVICE_VTJSC_OUTPUT" | sed -n '1p')
+
+            download_logo_data_uri "$SERVICE_LOGO_URL" > /tmp/service_logo_data_uri
+
+            SERVICE_CLAIMS=$(jq -n \
+              --rawfile logo /tmp/service_logo_data_uri \
+              --arg id "$CHILD_DID" \
+              --arg name "$SERVICE_NAME" \
+              --arg type "${SERVICE_TYPE:-AIAgent}" \
+              --arg desc "$SERVICE_DESCRIPTION" \
+              --argjson age "${SERVICE_MIN_AGE:-0}" \
+              --arg terms "${SERVICE_TERMS:-}" \
+              --arg privacy "${SERVICE_PRIVACY:-}" \
+              '{id: $id, name: $name, type: $type, description: $desc, logo: ($logo | rtrimstr("\n")), minimumAgeRequired: $age, termsAndConditions: $terms, privacyPolicy: $privacy}')
+
+            issue_remote_and_link "$ORG_ADMIN_API" "$CHILD_ADMIN_API" "service" "$SERVICE_JSC_URL" "$CHILD_DID" "$SERVICE_CLAIMS"
+          fi
+
+      # -----------------------------------------------------------------------
+      # CLEANUP
+      # -----------------------------------------------------------------------
+      - name: Stop port-forwards
+        if: always()
+        run: |
+          [ -n "${CHILD_PF_PID:-}" ] && kill "$CHILD_PF_PID" 2>/dev/null || true
+          [ -n "${ORG_PF_PID:-}" ] && kill "$ORG_PF_PID" 2>/dev/null || true
+
+      - name: Summary
+        if: always()
+        run: |
+          echo "## GitHub Agent VS" >> "$GITHUB_STEP_SUMMARY"
+          echo "" >> "$GITHUB_STEP_SUMMARY"
+          echo "- **VS Agent:** https://github-agent-vs.avatar.hologram.zone/.well-known/did.json" >> "$GITHUB_STEP_SUMMARY"
+          echo "- **Network:** testnet" >> "$GITHUB_STEP_SUMMARY"
+          echo "- **Chart:** ${CHART_SOURCE}:${CHART_VERSION}" >> "$GITHUB_STEP_SUMMARY"
