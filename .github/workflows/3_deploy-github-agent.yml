@@ -125,6 +125,12 @@ jobs:
             --set vs-agent-chart.extraEnv[1].value="${{ secrets.GH_AGENT_WALLET_KEY }}" \
             --wait --timeout 300s
 
+      - name: Restart chatbot to pick up ConfigMap changes
+        if: inputs.step == 'deploy' || inputs.step == 'all'
+        run: |
+          kubectl rollout restart deployment/github-agent-chart-chatbot -n "$CHART_NAMESPACE"
+          kubectl rollout status deployment/github-agent-chart-chatbot -n "$CHART_NAMESPACE" --timeout=120s
+
       # -----------------------------------------------------------------------
       # GET-CREDENTIALS: Obtain Service credential from organization
       # -----------------------------------------------------------------------
