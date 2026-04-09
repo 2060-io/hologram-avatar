@@ -15,6 +15,9 @@ global:
 
 nameOverride: 'github-agent-chart'
 
+# Credential definition ID for user authentication (injected from config.env by workflow)
+credentialDefinitionId: ''
+
 # === Redis ===
 redis:
   enabled: true
@@ -102,6 +105,8 @@ chatbot:
       value: 'http://github-agent.{{ .Release.Namespace }}:3000'
     - name: POSTGRES_HOST
       value: 'github-agent-chart-postgres.{{ .Release.Namespace }}'
+    - name: CREDENTIAL_DEFINITION_ID
+      value: '{{ .Values.credentialDefinitionId | default "" }}'
     - name: GITHUB_MCP_URL
       value: 'https://api.githubcopilot.com/mcp/'
   agentPack:

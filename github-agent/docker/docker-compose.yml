@@ -84,6 +84,7 @@ services:
       - POSTGRES_USER=${POSTGRES_USER:-github_agent_db}
       - POSTGRES_PASSWORD=${POSTGRES_PASSWORD:-changeme}
       - POSTGRES_DB_NAME=${POSTGRES_DB:-github-agent}
+      - CREDENTIAL_DEFINITION_ID=${CREDENTIAL_DEFINITION_ID}
       - GITHUB_MCP_URL=${GITHUB_MCP_URL:-https://api.githubcopilot.com/mcp/}
       - MCP_CONFIG_ENCRYPTION_KEY=${MCP_CONFIG_ENCRYPTION_KEY:-}
     volumes:

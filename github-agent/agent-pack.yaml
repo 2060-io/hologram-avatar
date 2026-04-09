@@ -131,7 +131,8 @@ flows:
     sendOnProfile: true
     templateKey: greetingMessage
   authentication:
-    enabled: false
+    enabled: true
+    credentialDefinitionId: ${CREDENTIAL_DEFINITION_ID}
   menu:
     items:
       - id: mcp-config

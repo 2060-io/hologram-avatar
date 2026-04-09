@@ -107,6 +107,10 @@ jobs:
           # Strip chart metadata before passing to Helm
           yq 'del(.chartSource, .chartVersion)' github-agent/deployment.yaml > /tmp/helm-values.yaml
 
+          # Inject credential definition ID from config.env
+          export CREDENTIAL_DEFINITION_ID
+          yq -i '.credentialDefinitionId = env(CREDENTIAL_DEFINITION_ID)' /tmp/helm-values.yaml
+
           helm upgrade --install "$RELEASE_NAME" "$CHART_SOURCE" \
             --version "$CHART_VERSION" \
             --namespace "$CHART_NAMESPACE" --create-namespace \
