@@ -128,8 +128,21 @@ jobs:
       - name: Restart chatbot to pick up ConfigMap changes
         if: inputs.step == 'deploy' || inputs.step == 'all'
         run: |
-          kubectl rollout restart deployment/github-agent-chart-chatbot -n "$CHART_NAMESPACE"
-          kubectl rollout status deployment/github-agent-chart-chatbot -n "$CHART_NAMESPACE" --timeout=120s
+          # Find the chatbot deployment created by this Helm release
+          CHATBOT_DEP=$(kubectl get deployments -n "$CHART_NAMESPACE" \
+            -l "app.kubernetes.io/instance=$RELEASE_NAME" \
+            -o jsonpath='{range .items[*]}{.metadata.name}{"\n"}{end}' \
+            | grep -i chatbot || true)
+
+          if [ -z "$CHATBOT_DEP" ]; then
+            echo "::warning::Could not find chatbot deployment — restarting all deployments in release"
+            kubectl get deployments -n "$CHART_NAMESPACE" -l "app.kubernetes.io/instance=$RELEASE_NAME"
+            kubectl rollout restart deployment -n "$CHART_NAMESPACE" -l "app.kubernetes.io/instance=$RELEASE_NAME"
+          else
+            echo "Restarting deployment/$CHATBOT_DEP"
+            kubectl rollout restart "deployment/$CHATBOT_DEP" -n "$CHART_NAMESPACE"
+            kubectl rollout status "deployment/$CHATBOT_DEP" -n "$CHART_NAMESPACE" --timeout=120s
+          fi
 
       # -----------------------------------------------------------------------
       # GET-CREDENTIALS: Obtain Service credential from organization
