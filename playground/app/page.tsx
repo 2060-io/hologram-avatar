@@ -1,7 +1,6 @@
 "use client";
 
 import { useState } from "react";
-import { QRCodeSVG } from "qrcode.react";
 import {
   Smartphone,
   ExternalLink,
@@ -155,12 +154,11 @@ function ServiceCard({
         <div className="border-t border-gray-100 bg-gray-50 px-6 py-6">
           <div className="flex flex-col items-center gap-4">
             <div className="bg-white rounded-2xl p-4 shadow-sm">
-              <QRCodeSVG
-                value={service.endpoint}
-                size={200}
-                level="M"
-                bgColor="#ffffff"
-                fgColor="#1a1a1a"
+              <img
+                src={`${service.endpoint}/qr`}
+                alt={`QR code for ${service.name}`}
+                width={200}
+                height={200}
               />
             </div>
             <p className="text-xs text-gray-400 text-center max-w-xs">
