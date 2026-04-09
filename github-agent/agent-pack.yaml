@@ -174,16 +174,19 @@ mcp:
               fr: "Veuillez entrer votre jeton d'accès personnel GitHub :"
             headerTemplate: "Bearer {value}"
       toolAccess:
-        default: admin
-        public:
-          - search_repositories
-          - search_code
-          - search_issues
-          - search_pull_requests
-          - list_issues
-          - list_pull_requests
-          - get_file_contents
-          - get_me
+        default: public
+        # To restrict most tools to admin-only users, change default to 'admin'
+        # and list the tools that should remain public:
+        # default: admin
+        # public:
+        #   - search_repositories
+        #   - search_code
+        #   - search_issues
+        #   - search_pull_requests
+        #   - list_issues
+        #   - list_pull_requests
+        #   - get_file_contents
+        #   - get_me
 
 integrations:
   vsAgent:
