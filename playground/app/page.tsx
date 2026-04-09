@@ -277,7 +277,7 @@ export default function PlaygroundPage() {
             for CI/CD.
           </p>
           <div className="rounded-xl border border-gray-200 bg-gray-900 text-gray-300 p-5 font-mono text-sm leading-relaxed overflow-x-auto">
-            <pre>{`hologram-avatar/
+            <pre>{`hologram-verifiable-services/
   common/             # Shared shell helpers
   organization-vs/    # Trust anchor (workflow 1)
   avatar/             # Credential issuer chatbot (workflow 2)
@@ -286,7 +286,7 @@ export default function PlaygroundPage() {
           </div>
           <div className="mt-4">
             <a
-              href="https://github.com/2060-io/hologram-avatar"
+              href="https://github.com/2060-io/hologram-verifiable-services"
               target="_blank"
               rel="noopener noreferrer"
               className="inline-flex items-center gap-2 text-sm text-violet-600 hover:underline"

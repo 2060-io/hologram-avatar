@@ -28,7 +28,7 @@ Child services obtain a **Service credential** from organization-vs, making thei
 ## Directory Structure
 
 ```
-hologram-avatar/
+hologram-verifiable-services/
   common/               # Shared shell helpers
   organization-vs/      # Trust anchor (workflow 1)
   avatar/               # Credential issuer chatbot (workflow 2)

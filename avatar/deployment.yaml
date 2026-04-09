@@ -1,8 +1,8 @@
 # Issuer Chatbot VS Agent deployment — Helm chart values
 #
-# Hardcoded for hologram-avatar testnet deployment on vs.hologram.zone
+# Hardcoded for hologram-verifiable-services testnet deployment on vs.hologram.zone
 chartSource: oci://registry-1.docker.io/veranalabs/vs-agent-chart
-chartVersion: v1.9.1
+chartVersion: v1.9.2
 
 global:
   domain: vs.hologram.zone
