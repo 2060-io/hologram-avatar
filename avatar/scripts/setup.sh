@@ -6,14 +6,14 @@
 # This script sets up the Issuer Chatbot VS Agent locally (child service):
 #   1. Deploys the VS Agent via Docker + ngrok
 #   2. Sets up the veranad CLI account
-#   3. Obtains a Service credential from organization-vs
-#   4. Obtains an ISSUER permission for the organization-vs schema (VP flow)
+#   3. Obtains a Service credential from organization
+#   4. Obtains an ISSUER permission for the organization schema (VP flow)
 #
-# Requires organization-vs to be running and its admin API reachable.
+# Requires organization to be running and its admin API reachable.
 #
 # Prerequisites:
 #   - Docker, ngrok (authenticated), curl, jq
-#   - Organization VS running (ORG_VS_ADMIN_URL reachable)
+#   - Organization running (ORG_VS_ADMIN_URL reachable)
 #
 # Usage:
 #   source avatar/config.env
@@ -49,7 +49,7 @@ SERVICE_NAME="${SERVICE_NAME:-Example Issuer Chatbot}"
 USER_ACC="${USER_ACC:-org-vs-admin}"
 OUTPUT_FILE="${OUTPUT_FILE:-${SERVICE_DIR}/ids.env}"
 
-# Organization VS
+# Organization
 ORG_VS_ADMIN_URL="${ORG_VS_ADMIN_URL:-http://localhost:3000}"
 ORG_VS_PUBLIC_URL="${ORG_VS_PUBLIC_URL:-}"
 
@@ -177,18 +177,18 @@ log "Step 2: Set up veranad CLI account"
 setup_veranad_account "$USER_ACC" "$FAUCET_URL"
 
 # =============================================================================
-# STEP 3: Obtain Service credential from organization-vs
+# STEP 3: Obtain Service credential from organization
 # =============================================================================
 
-log "Step 3: Obtain Service credential from organization-vs"
+log "Step 3: Obtain Service credential from organization"
 
-# Verify organization-vs admin API is reachable (use /api which is always exposed)
+# Verify organization admin API is reachable (use /api which is always exposed)
 if ! curl -sf "${ORG_VS_ADMIN_URL}/api" > /dev/null 2>&1; then
-  err "Organization VS admin API not reachable at ${ORG_VS_ADMIN_URL}"
-  err "Make sure organization-vs is running and ORG_VS_ADMIN_URL is set correctly."
+  err "Organization admin API not reachable at ${ORG_VS_ADMIN_URL}"
+  err "Make sure organization is running and ORG_VS_ADMIN_URL is set correctly."
   exit 1
 fi
-ok "Organization VS admin API reachable: $ORG_VS_ADMIN_URL"
+ok "Organization admin API reachable: $ORG_VS_ADMIN_URL"
 
 # Skip if Service credential is already linked on the local agent
 if has_linked_vp "$NGROK_URL" "service"; then
@@ -214,40 +214,40 @@ else
     --arg privacy "$SERVICE_PRIVACY" \
     '{id: $id, name: $name, type: $type, description: $desc, logo: $logo, minimumAgeRequired: $age, termsAndConditions: $terms, privacyPolicy: $privacy}')
 
-  # Issue Service credential from organization-vs, link on local agent
+  # Issue Service credential from organization, link on local agent
   issue_remote_and_link "$ORG_VS_ADMIN_URL" "$ADMIN_API" "service" "$SERVICE_JSC_URL" "$AGENT_DID" "$SERVICE_CLAIMS"
 fi
 
 # =============================================================================
-# STEP 4: Obtain ISSUER permission for organization-vs schema (VP flow)
+# STEP 4: Obtain ISSUER permission for organization schema (VP flow)
 # =============================================================================
 
-log "Step 4: Obtain ISSUER permission for organization-vs schema"
+log "Step 4: Obtain ISSUER permission for organization schema"
 
-# Discover the custom schema from organization-vs DID document
-# The organization-vs public endpoint serves its DID document
+# Discover the custom schema from organization DID document
+# The organization public endpoint serves its DID document
 if [ -z "$ORG_VS_PUBLIC_URL" ]; then
   # Derive from org agent's DID
   ORG_AGENT_DID=$(curl -sf "${ORG_VS_ADMIN_URL}/v1/agent" | jq -r '.publicDid')
-  ok "Organization VS DID: $ORG_AGENT_DID"
+  ok "Organization DID: $ORG_AGENT_DID"
 else
   ORG_AGENT_DID=""
 fi
 
 # Find VTJSC entries in the org's DID document that are NOT organization/service
 # (those are the custom schema VTJSCs)
-log "Looking for custom schema VTJSC in organization-vs..."
+log "Looking for custom schema VTJSC in organization..."
 ORG_PUBLIC_API="${ORG_VS_PUBLIC_URL:-}"
 if [ -z "$ORG_PUBLIC_API" ]; then
-  # If organization-vs is local, try its public port
+  # If organization is local, try its public port
   ORG_PUBLIC_PORT="${ORG_VS_PUBLIC_PORT:-3001}"
   ORG_PUBLIC_API="http://localhost:${ORG_PUBLIC_PORT}"
 fi
 
 ORG_DID_DOC=$(curl -sf "${ORG_PUBLIC_API}/.well-known/did.json" 2>/dev/null || echo "{}")
 if [ "$ORG_DID_DOC" = "{}" ]; then
-  err "Could not fetch organization-vs DID document from $ORG_PUBLIC_API"
-  err "Set ORG_VS_PUBLIC_URL to the organization-vs public endpoint."
+  err "Could not fetch organization DID document from $ORG_PUBLIC_API"
+  err "Set ORG_VS_PUBLIC_URL to the organization public endpoint."
   exit 1
 fi
 
@@ -260,7 +260,7 @@ CUSTOM_VP_URL=$(echo "$ORG_DID_DOC" | jq -r '
   .serviceEndpoint' | head -1)
 
 if [ -z "$CUSTOM_VP_URL" ]; then
-  err "No custom schema VTJSC found in organization-vs DID document"
+  err "No custom schema VTJSC found in organization DID document"
   exit 1
 fi
 ok "Custom schema VTJSC VP: $CUSTOM_VP_URL"
@@ -271,10 +271,10 @@ CUSTOM_SCHEMA_REF=$(echo "$CUSTOM_VP" | jq -r '.verifiableCredential[0].credenti
 CUSTOM_SCHEMA_ID=$(echo "$CUSTOM_SCHEMA_REF" | grep -oE '[0-9]+$')
 
 if [ -z "$CUSTOM_SCHEMA_ID" ]; then
-  err "Could not extract schema ID from organization-vs VTJSC"
+  err "Could not extract schema ID from organization VTJSC"
   exit 1
 fi
-ok "Organization-vs custom schema ID: $CUSTOM_SCHEMA_ID"
+ok "Organization custom schema ID: $CUSTOM_SCHEMA_ID"
 
 # Check if ISSUER permission already exists
 if EXISTING_PERM=$(find_active_issuer_perm "$CUSTOM_SCHEMA_ID" "$AGENT_DID"); then

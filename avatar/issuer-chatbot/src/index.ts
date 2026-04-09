@@ -22,7 +22,7 @@ async function main(): Promise<void> {
   const agent = await client.waitForReady();
   console.log(`VS-Agent ready — DID: ${agent.publicDid}`);
 
-  // Discover schema from organization-vs (schema owner)
+  // Discover schema from organization (schema owner)
   const customSchemaBaseId = process.env.CUSTOM_SCHEMA_BASE_ID || "example";
   const orgPublicUrl = config.orgVsPublicUrl || undefined;
   const orgClient = orgPublicUrl

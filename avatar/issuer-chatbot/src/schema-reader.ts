@@ -45,7 +45,7 @@ export interface SchemaInfo {
   credentialDefinitionId: string;
 }
 
-// Discover the custom schema VTJSC from the organization-vs public DID document.
+// Discover the custom schema VTJSC from the organization public DID document.
 // Falls back to the admin API when no public URL is configured (fully local setup).
 export async function discoverSchema(
   client: VsAgentClient,
@@ -59,7 +59,7 @@ export async function discoverSchema(
   if (orgPublicUrl) {
     // Discover from public DID document (works through the public ingress)
     const didDocUrl = `${orgPublicUrl}/.well-known/did.json`;
-    console.log(`Fetching organization-vs DID document from ${didDocUrl}`);
+    console.log(`Fetching organization DID document from ${didDocUrl}`);
     const didDocRes = await fetch(didDocUrl);
     if (!didDocRes.ok) {
       throw new Error(

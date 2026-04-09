@@ -124,17 +124,17 @@ jobs:
           }
           echo "Port-forward to child VS-Agent on :3002"
 
-      - name: Port-forward organization VS Agent
+      - name: Port-forward organization Agent
         if: inputs.step == 'get-credentials' || inputs.step == 'all'
         run: |
-          kubectl port-forward -n "$CHART_NAMESPACE" "svc/organization-vs" 3000:3000 &
+          kubectl port-forward -n "$CHART_NAMESPACE" "svc/organization" 3000:3000 &
           echo "ORG_PF_PID=$!" >> "$GITHUB_ENV"
           sleep 5
           curl -sf http://localhost:3000/v1/agent > /dev/null || {
-            echo "::error::Port-forward to organization VS-Agent failed"
+            echo "::error::Port-forward to organization-Agent failed"
             exit 1
           }
-          echo "Port-forward to organization VS-Agent on :3000"
+          echo "Port-forward to organization-Agent on :3000"
 
       - name: Get Service credential and ISSUER permission
         if: inputs.step == 'get-credentials' || inputs.step == 'all'
@@ -147,7 +147,7 @@ jobs:
           CHILD_DID=$(curl -sf "${CHILD_ADMIN_API}/v1/agent" | jq -r '.publicDid')
           echo "Child DID: $CHILD_DID"
 
-          # Get Service credential from organization-vs (skip if already linked)
+          # Get Service credential from organization (skip if already linked)
           CHILD_PUBLIC_URL="https://${INGRESS_HOST}"
           if has_linked_vp "$CHILD_PUBLIC_URL" "service"; then
             ok "Service credential already linked — skipping"
@@ -171,8 +171,8 @@ jobs:
             issue_remote_and_link "$ORG_ADMIN_API" "$CHILD_ADMIN_API" "service" "$SERVICE_JSC_URL" "$CHILD_DID" "$SERVICE_CLAIMS"
           fi
 
-          # Discover custom schema from organization-vs DID doc
-          ORG_PUBLIC_URL="https://organization-vs.vs.hologram.zone"
+          # Discover custom schema from organization DID doc
+          ORG_PUBLIC_URL="https://organization.vs.hologram.zone"
 
           ORG_DID_DOC=$(curl -sf "${ORG_PUBLIC_URL}/.well-known/did.json")
           CUSTOM_VP_URL=$(echo "$ORG_DID_DOC" | jq -r '
@@ -183,13 +183,13 @@ jobs:
             .serviceEndpoint' | head -1)
 
           if [ -z "$CUSTOM_VP_URL" ]; then
-            echo "::error::No custom schema VP found in organization-vs DID doc. Has the trust registry been created?"
+            echo "::error::No custom schema VP found in organization DID doc. Has the trust registry been created?"
             exit 1
           fi
           CUSTOM_VP=$(curl -sf "$CUSTOM_VP_URL")
           CUSTOM_SCHEMA_REF=$(echo "$CUSTOM_VP" | jq -r '.verifiableCredential[0].credentialSubject.jsonSchema."$ref" // empty')
           CUSTOM_SCHEMA_ID=$(echo "$CUSTOM_SCHEMA_REF" | grep -oE '[0-9]+$')
-          ok "Organization-vs custom schema ID: $CUSTOM_SCHEMA_ID"
+          ok "Organization custom schema ID: $CUSTOM_SCHEMA_ID"
 
           # Obtain ISSUER permission via VP flow
           if EXISTING_PERM=$(find_active_issuer_perm "$CUSTOM_SCHEMA_ID" "$CHILD_DID"); then
@@ -473,9 +473,9 @@ jobs:
                       - name: VS_AGENT_ADMIN_URL
                         value: "http://${RELEASE_NAME}:3000"
                       - name: ORG_VS_ADMIN_URL
-                        value: "http://organization-vs:3000"
+                        value: "http://organization:3000"
                       - name: ORG_VS_PUBLIC_URL
-                        value: "https://organization-vs.vs.hologram.zone"
+                        value: "https://organization.vs.hologram.zone"
                       - name: CHATBOT_PORT
                         value: "${PORT}"
                       - name: DATABASE_URL

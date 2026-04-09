@@ -1,4 +1,4 @@
-name: 1_ Deploy Organization VS
+name: 1_ Deploy Organization
 
 on:
   workflow_dispatch:
@@ -15,8 +15,8 @@ on:
         default: all
 
 jobs:
-  deploy-organization-vs:
-    name: Deploy Organization VS Agent
+  deploy-organization:
+    name: Deploy Organization Agent
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
@@ -33,20 +33,20 @@ jobs:
       - name: Load configuration
         run: |
           set -a
-          source organization-vs/config.env
+          source organization/config.env
           set +a
           while IFS= read -r line; do
             key="${line%%=*}"
             echo "${key}=${!key}" >> "$GITHUB_ENV"
-          done < <(grep -E '^[A-Z_]+=' organization-vs/config.env)
+          done < <(grep -E '^[A-Z_]+=' organization/config.env)
 
       - name: Parse deployment.yaml
         run: |
-          CHART_SOURCE=$(yq '.chartSource' organization-vs/deployment.yaml)
-          CHART_VERSION=$(yq '.chartVersion' organization-vs/deployment.yaml)
+          CHART_SOURCE=$(yq '.chartSource' organization/deployment.yaml)
+          CHART_VERSION=$(yq '.chartVersion' organization/deployment.yaml)
           CHART_NAMESPACE="${{ secrets.K8S_NAMESPACE }}"
-          RELEASE_NAME=$(yq '.name' organization-vs/deployment.yaml)
-          INGRESS_HOST=$(yq '.ingress.host' organization-vs/deployment.yaml)
+          RELEASE_NAME=$(yq '.name' organization/deployment.yaml)
+          INGRESS_HOST=$(yq '.ingress.host' organization/deployment.yaml)
           echo "CHART_SOURCE=${CHART_SOURCE}" >> "$GITHUB_ENV"
           echo "CHART_VERSION=${CHART_VERSION}" >> "$GITHUB_ENV"
           echo "CHART_NAMESPACE=${CHART_NAMESPACE}" >> "$GITHUB_ENV"
@@ -56,7 +56,7 @@ jobs:
 
       - name: Generate Helm values
         run: |
-          yq 'del(.chartSource, .chartVersion)' organization-vs/deployment.yaml > /tmp/helm-values.yaml
+          yq 'del(.chartSource, .chartVersion)' organization/deployment.yaml > /tmp/helm-values.yaml
           yq -i '.didcommLabel = env(SERVICE_NAME)' /tmp/helm-values.yaml
           yq -i '.didcommInvitationImageUrl = env(SERVICE_LOGO_URL)' /tmp/helm-values.yaml
           # Do NOT expose admin via Helm private ingress — a standalone
@@ -251,7 +251,7 @@ jobs:
             if [ -n "${CUSTOM_SCHEMA_URL:-}" ]; then
               SCHEMA_JSON=$(download_schema "$CUSTOM_SCHEMA_URL")
             else
-              SCHEMA_JSON=$(jq -c '.' organization-vs/schema.json)
+              SCHEMA_JSON=$(jq -c '.' organization/schema.json)
             fi
 
             # Check if a trust registry already exists for this schema
@@ -375,7 +375,7 @@ jobs:
       - name: Summary
         if: always()
         run: |
-          echo "## Organization VS" >> "$GITHUB_STEP_SUMMARY"
+          echo "## Organization" >> "$GITHUB_STEP_SUMMARY"
           echo "" >> "$GITHUB_STEP_SUMMARY"
           if [ -n "${INGRESS_HOST:-}" ]; then
             echo "- **VS Agent:** https://${INGRESS_HOST}/.well-known/did.json" >> "$GITHUB_STEP_SUMMARY"

@@ -16,13 +16,13 @@ import {
 
 const services = [
   {
-    name: "Organization VS",
+    name: "Organization",
     role: "Trust Anchor",
     desc: "The root of trust for this ecosystem. Registers with the Verana Network, creates a Trust Registry, and issues Service credentials to child services.",
     icon: Building2,
     color: "text-amber-600 bg-amber-50",
     endpoint: null,
-    workflow: "1_deploy-organization-vs",
+    workflow: "1_deploy-organization",
   },
   {
     name: "Avatar",
@@ -277,16 +277,16 @@ export default function PlaygroundPage() {
             for CI/CD.
           </p>
           <div className="rounded-xl border border-gray-200 bg-gray-900 text-gray-300 p-5 font-mono text-sm leading-relaxed overflow-x-auto">
-            <pre>{`hologram-avatar/
+            <pre>{`hologram-verifiable-services/
   common/             # Shared shell helpers
-  organization-vs/    # Trust anchor (workflow 1)
+  organization/    # Trust anchor (workflow 1)
   avatar/             # Credential issuer chatbot (workflow 2)
   github-agent/       # GitHub AI agent with MCP (workflow 3)
   playground/         # This landing page (workflow 6)`}</pre>
           </div>
           <div className="mt-4">
             <a
-              href="https://github.com/2060-io/hologram-avatar"
+              href="https://github.com/2060-io/hologram-verifiable-services"
               target="_blank"
               rel="noopener noreferrer"
               className="inline-flex items-center gap-2 text-sm text-violet-600 hover:underline"

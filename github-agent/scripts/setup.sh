@@ -6,13 +6,13 @@
 # This script sets up the GitHub Agent VS locally:
 #   1. Deploys the VS Agent via Docker + ngrok
 #   2. Sets up the veranad CLI account
-#   3. Obtains a Service credential from organization-vs
+#   3. Obtains a Service credential from organization
 #
-# Requires organization-vs to be running and its admin API reachable.
+# Requires organization to be running and its admin API reachable.
 #
 # Prerequisites:
 #   - Docker, ngrok (authenticated), curl, jq
-#   - Organization VS running (ORG_VS_ADMIN_URL reachable)
+#   - Organization running (ORG_VS_ADMIN_URL reachable)
 #
 # Usage:
 #   source github-agent/config.env
@@ -47,7 +47,7 @@ SERVICE_NAME="${SERVICE_NAME:-GitHub Agent}"
 USER_ACC="${USER_ACC:-org-vs-admin}"
 OUTPUT_FILE="${OUTPUT_FILE:-${SERVICE_DIR}/ids.env}"
 
-# Organization VS
+# Organization
 ORG_VS_ADMIN_URL="${ORG_VS_ADMIN_URL:-http://localhost:3000}"
 ORG_VS_PUBLIC_URL="${ORG_VS_PUBLIC_URL:-}"
 
@@ -170,18 +170,18 @@ log "Step 2: Set up veranad CLI account"
 setup_veranad_account "$USER_ACC" "$FAUCET_URL"
 
 # =============================================================================
-# STEP 3: Obtain Service credential from organization-vs
+# STEP 3: Obtain Service credential from organization
 # =============================================================================
 
-log "Step 3: Obtain Service credential from organization-vs"
+log "Step 3: Obtain Service credential from organization"
 
-# Verify organization-vs admin API is reachable
+# Verify organization admin API is reachable
 if ! curl -sf "${ORG_VS_ADMIN_URL}/api" > /dev/null 2>&1; then
-  err "Organization VS admin API not reachable at ${ORG_VS_ADMIN_URL}"
-  err "Make sure organization-vs is running and ORG_VS_ADMIN_URL is set correctly."
+  err "Organization admin API not reachable at ${ORG_VS_ADMIN_URL}"
+  err "Make sure organization is running and ORG_VS_ADMIN_URL is set correctly."
   exit 1
 fi
-ok "Organization VS admin API reachable: $ORG_VS_ADMIN_URL"
+ok "Organization admin API reachable: $ORG_VS_ADMIN_URL"
 
 # Skip if Service credential is already linked on the local agent
 if has_linked_vp "$NGROK_URL" "service"; then
@@ -207,7 +207,7 @@ else
     --arg privacy "$SERVICE_PRIVACY" \
     '{id: $id, name: $name, type: $type, description: $desc, logo: $logo, minimumAgeRequired: $age, termsAndConditions: $terms, privacyPolicy: $privacy}')
 
-  # Issue Service credential from organization-vs, link on local agent
+  # Issue Service credential from organization, link on local agent
   issue_remote_and_link "$ORG_VS_ADMIN_URL" "$ADMIN_API" "service" "$SERVICE_JSC_URL" "$AGENT_DID" "$SERVICE_CLAIMS"
 fi
 

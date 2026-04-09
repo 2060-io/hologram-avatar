@@ -1,18 +1,18 @@
-# Organization VS Agent deployment — Helm chart values
+# Organization Agent deployment — Helm chart values
 #
-# Hardcoded for hologram-avatar testnet deployment on vs.hologram.zone
+# Hardcoded for hologram-verifiable-services testnet deployment on vs.hologram.zone
 chartSource: oci://registry-1.docker.io/veranalabs/vs-agent-chart
-chartVersion: v1.9.1
+chartVersion: v1.9.2
 
 global:
   domain: vs.hologram.zone
 
-name: organization-vs
+name: organization
 replicas: 1
 
 adminPort: 3000
 didcommPort: 3001
-eventsBaseUrl: "https://organization-vs.vs.hologram.zone"
+eventsBaseUrl: "https://organization.vs.hologram.zone"
 publicDidMethod: "webvh"
 
 resources:
@@ -24,8 +24,8 @@ resources:
     memory: 512Mi
 
 ingress:
-  host: "organization-vs.vs.hologram.zone"
-  tlsSecret: "organization-vs.vs.hologram.zone-cert"
+  host: "organization.vs.hologram.zone"
+  tlsSecret: "organization.vs.hologram.zone-cert"
   public:
     enableCors: true
   private:

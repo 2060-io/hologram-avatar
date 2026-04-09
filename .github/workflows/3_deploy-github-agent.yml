@@ -126,7 +126,7 @@ jobs:
             --wait --timeout 300s
 
       # -----------------------------------------------------------------------
-      # GET-CREDENTIALS: Obtain Service credential from organization-vs
+      # GET-CREDENTIALS: Obtain Service credential from organization
       # -----------------------------------------------------------------------
       - name: Port-forward GitHub Agent VS Agent
         if: inputs.step == 'get-credentials' || inputs.step == 'all'
@@ -141,17 +141,17 @@ jobs:
           }
           echo "Port-forward to GitHub Agent VS-Agent on :3002"
 
-      - name: Port-forward organization VS Agent
+      - name: Port-forward organization Agent
         if: inputs.step == 'get-credentials' || inputs.step == 'all'
         run: |
-          kubectl port-forward -n "$CHART_NAMESPACE" "svc/organization-vs" 3000:3000 &
+          kubectl port-forward -n "$CHART_NAMESPACE" "svc/organization" 3000:3000 &
           echo "ORG_PF_PID=$!" >> "$GITHUB_ENV"
           sleep 5
           curl -sf http://localhost:3000/v1/agent > /dev/null || {
-            echo "::error::Port-forward to organization VS-Agent failed"
+            echo "::error::Port-forward to organization-Agent failed"
             exit 1
           }
-          echo "Port-forward to organization VS-Agent on :3000"
+          echo "Port-forward to organization-Agent on :3000"
 
       - name: Get Service credential
         if: inputs.step == 'get-credentials' || inputs.step == 'all'

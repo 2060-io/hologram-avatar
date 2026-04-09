@@ -1,9 +1,9 @@
 #!/usr/bin/env bash
 # =============================================================================
-# Organization VS — Local Setup
+# Organization — Local Setup
 # =============================================================================
 #
-# This script sets up the Organization VS Agent locally:
+# This script sets up the Organization Agent locally:
 #   1. Deploys the VS Agent via Docker + ngrok
 #   2. Sets up the veranad CLI account
 #   3. Obtains Organization + Service credentials from ECS TR
@@ -18,8 +18,8 @@
 #   - curl, jq
 #
 # Usage:
-#   source organization-vs/config.env
-#   ./organization-vs/scripts/setup.sh
+#   source organization/config.env
+#   ./organization/scripts/setup.sh
 #
 # =============================================================================
 
@@ -38,7 +38,7 @@ source "${REPO_ROOT}/common/common.sh"
 
 NETWORK="${NETWORK:-testnet}"
 VS_AGENT_IMAGE="${VS_AGENT_IMAGE:-veranalabs/vs-agent:latest}"
-VS_AGENT_CONTAINER_NAME="${VS_AGENT_CONTAINER_NAME:-organization-vs}"
+VS_AGENT_CONTAINER_NAME="${VS_AGENT_CONTAINER_NAME:-organization}"
 VS_AGENT_ADMIN_PORT="${VS_AGENT_ADMIN_PORT:-3000}"
 VS_AGENT_PUBLIC_PORT="${VS_AGENT_PUBLIC_PORT:-3001}"
 VS_AGENT_DATA_DIR="${VS_AGENT_DATA_DIR:-${SERVICE_DIR}/data}"
@@ -360,7 +360,7 @@ fi
 # =============================================================================
 # STEP 5: AnonCreds credential definition — SKIPPED
 # =============================================================================
-# NOTE: organization-vs no longer creates a credential definition.
+# NOTE: organization no longer creates a credential definition.
 # Each issuer (avatar, issuer-web-vs) creates its own credential
 # definition pointing to the jsonSchemaCredential published by this service.
 
@@ -373,7 +373,7 @@ log "Step 5: AnonCreds credential definition — skipped (issuers create their o
 log "Saving resource IDs to ${OUTPUT_FILE}"
 
 cat > "$OUTPUT_FILE" <<EOF
-# Organization VS — Resource IDs
+# Organization — Resource IDs
 # Generated: $(date -u +"%Y-%m-%dT%H:%M:%SZ")
 # Network: ${NETWORK}
 
@@ -393,7 +393,7 @@ ok "IDs saved to ${OUTPUT_FILE}"
 # Summary
 # =============================================================================
 
-log "Organization VS setup complete!"
+log "Organization setup complete!"
 echo ""
 echo "  Agent DID         : $AGENT_DID"
 echo "  Public URL        : $NGROK_URL"
