@@ -1,13 +1,17 @@
+"use client";
+
+import { useState } from "react";
+import { QRCodeSVG } from "qrcode.react";
 import {
-  Building2,
-  MessageSquare,
-  Github,
   Smartphone,
   ExternalLink,
   ArrowDown,
   Shield,
   Bot,
   KeyRound,
+  QrCode,
+  X,
+  Github,
 } from "lucide-react";
 
 /* ------------------------------------------------------------------ */
@@ -16,31 +20,31 @@ import {
 
 const services = [
   {
+    id: "organization",
     name: "Organization",
     role: "Trust Anchor",
-    desc: "The root of trust for this ecosystem. Registers with the Verana Network, creates a Trust Registry, and issues Service credentials to child services.",
-    icon: Building2,
-    color: "text-amber-600 bg-amber-50",
+    desc: "The root of trust for this ecosystem. It registers with the Verana Network as a verified organization, creates a Trust Registry with a custom credential schema, and issues Service credentials to child services. All other services in this ecosystem derive their trust from this anchor.",
+    logoUrl: "https://2060.io/images/logo-squared.svg",
+    borderColor: "border-amber-200",
     endpoint: null,
-    workflow: "1_deploy-organization",
   },
   {
+    id: "avatar",
     name: "Avatar",
-    role: "Credential Issuer",
-    desc: "A DIDComm chatbot that issues verifiable credentials to users through conversational interactions in Hologram Messaging.",
-    icon: MessageSquare,
-    color: "text-violet-600 bg-violet-50",
+    role: "Credential Issuer Chatbot",
+    desc: "A DIDComm chatbot that issues verifiable credentials to users through conversational interactions. Connect with Hologram Messaging, follow the guided flow, and receive a W3C Verifiable Credential backed by the Verana Trust Registry. Your credential proves attributes about you and can be verified by any party.",
+    logoUrl: "https://2060.io/images/avatar.jpg",
+    borderColor: "border-violet-200",
     endpoint: "https://avatar.vs.hologram.zone",
-    workflow: "2_deploy-avatar",
   },
   {
+    id: "github-agent",
     name: "GitHub Agent",
-    role: "AI Agent + MCP",
-    desc: "An AI-powered GitHub assistant with MCP integration. Search repositories, browse issues, pull requests, and code — all through a DIDComm chatbot in Hologram Messaging.",
-    icon: Github,
-    color: "text-gray-800 bg-gray-100",
+    role: "AI Agent with MCP",
+    desc: "An AI-powered GitHub assistant that uses the Model Context Protocol (MCP) to interact with GitHub on your behalf. Search repositories, browse issues and pull requests, explore code, and manage your projects — all through an encrypted DIDComm chat in Hologram Messaging. To get started: first authenticate using the credential you received from the Avatar service, then open the contextual menu, select \"MCP Server Config\", and enter your GitHub Personal Access Token. Once configured, the agent can access GitHub tools on your behalf.",
+    logoUrl: "https://hologram.zone/images/github.svg",
+    borderColor: "border-gray-200",
     endpoint: "https://github-agent.vs.hologram.zone",
-    workflow: "3_deploy-github-agent",
   },
 ];
 
@@ -54,7 +58,7 @@ const steps = [
   {
     number: 2,
     title: "Connect to a service",
-    desc: "Visit a service endpoint (e.g. Issuer Chatbot or GitHub Agent) and scan the QR code with Hologram Messaging to establish an encrypted DIDComm connection.",
+    desc: "Tap \"Show QR Code\" on any service card below, then scan it with Hologram Messaging to establish an encrypted DIDComm connection.",
     icon: KeyRound,
   },
   {
@@ -64,6 +68,112 @@ const steps = [
     icon: Bot,
   },
 ];
+
+/* ------------------------------------------------------------------ */
+/*  Service Card                                                       */
+/* ------------------------------------------------------------------ */
+
+function ServiceCard({
+  service,
+}: {
+  service: (typeof services)[number];
+}) {
+  const [showQr, setShowQr] = useState(false);
+
+  return (
+    <div
+      className={`rounded-2xl border ${service.borderColor} bg-white shadow-sm overflow-hidden`}
+    >
+      <div className="p-6">
+        {/* Header */}
+        <div className="flex items-start gap-4 mb-4">
+          <img
+            src={service.logoUrl}
+            alt={service.name}
+            className="w-12 h-12 rounded-xl shrink-0 object-cover"
+          />
+          <div>
+            <h3 className="text-lg font-bold text-gray-900">{service.name}</h3>
+            <span className="text-sm text-gray-400 font-medium">
+              {service.role}
+            </span>
+          </div>
+        </div>
+
+        {/* Description */}
+        <p className="text-sm text-gray-600 leading-relaxed mb-4">
+          {service.desc}
+        </p>
+
+        {/* Actions */}
+        {service.endpoint && (
+          <div className="flex flex-wrap items-center gap-3">
+            <button
+              onClick={() => setShowQr(!showQr)}
+              className={`inline-flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-medium transition-colors ${
+                showQr
+                  ? "bg-gray-900 text-white hover:bg-gray-800"
+                  : "bg-violet-600 text-white hover:bg-violet-700"
+              }`}
+            >
+              {showQr ? (
+                <>
+                  <X className="w-4 h-4" /> Hide QR Code
+                </>
+              ) : (
+                <>
+                  <QrCode className="w-4 h-4" /> Connect with Hologram
+                </>
+              )}
+            </button>
+            <a
+              href={service.endpoint}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-flex items-center gap-1.5 text-sm text-gray-500 hover:text-violet-600 transition-colors"
+            >
+              <ExternalLink className="w-3.5 h-3.5" />
+              {service.endpoint.replace("https://", "")}
+            </a>
+          </div>
+        )}
+
+        {!service.endpoint && (
+          <div className="flex items-start gap-2 rounded-lg bg-amber-50 border border-amber-200 px-3 py-2">
+            <Shield className="w-4 h-4 text-amber-600 shrink-0 mt-0.5" />
+            <p className="text-xs text-amber-700">
+              This is the trust anchor — it has no public-facing chatbot.
+              It operates in the background, issuing credentials to the
+              services below.
+            </p>
+          </div>
+        )}
+      </div>
+
+      {/* QR Code panel */}
+      {showQr && service.endpoint && (
+        <div className="border-t border-gray-100 bg-gray-50 px-6 py-6">
+          <div className="flex flex-col items-center gap-4">
+            <div className="bg-white rounded-2xl p-4 shadow-sm">
+              <QRCodeSVG
+                value={service.endpoint}
+                size={200}
+                level="M"
+                bgColor="#ffffff"
+                fgColor="#1a1a1a"
+              />
+            </div>
+            <p className="text-xs text-gray-400 text-center max-w-xs">
+              Scan with{" "}
+              <strong className="text-gray-600">Hologram Messaging</strong> to
+              establish an encrypted DIDComm connection with this service.
+            </p>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
 
 /* ------------------------------------------------------------------ */
 /*  Page                                                               */
@@ -81,7 +191,7 @@ export default function PlaygroundPage() {
             className="h-12 mx-auto mb-6 rounded-xl"
           />
           <p className="text-white/70 text-sm font-medium tracking-wider uppercase mb-3">
-            Hologram Avatar
+            Hologram Verifiable Services
           </p>
           <h1 className="text-4xl md:text-5xl font-bold mb-4">
             Verifiable Services Showcase
@@ -103,48 +213,6 @@ export default function PlaygroundPage() {
 
       <main className="max-w-4xl mx-auto px-6 py-16 space-y-20">
         {/* ============================================================ */}
-        {/* About                                                        */}
-        {/* ============================================================ */}
-        <section>
-          <h2 className="text-2xl font-bold text-gray-900 mb-2">
-            What is this?
-          </h2>
-          <p className="text-gray-600 leading-relaxed mb-4">
-            <strong>Hologram Avatar</strong> is a repository that packages
-            multiple <em>Verifiable Services</em> (VS) into a single
-            deployable ecosystem. Each service runs as a Kubernetes deployment
-            backed by the{" "}
-            <a
-              href="https://github.com/verana-labs/vs-agent"
-              target="_blank"
-              rel="noopener noreferrer"
-              className="text-violet-600 hover:underline"
-            >
-              VS Agent
-            </a>{" "}
-            — a DIDComm-enabled agent framework — and is registered in the{" "}
-            <a
-              href="https://verana.io"
-              target="_blank"
-              rel="noopener noreferrer"
-              className="text-violet-600 hover:underline"
-            >
-              Verana Network
-            </a>{" "}
-            Trust Registry.
-          </p>
-          <div className="flex items-start gap-3 rounded-xl bg-violet-50 border border-violet-200 p-4">
-            <Shield className="w-5 h-5 text-violet-600 shrink-0 mt-0.5" />
-            <p className="text-sm text-violet-800">
-              Every service in this ecosystem holds a <strong>Service
-              credential</strong> issued by the Organization trust anchor,
-              making its identity and permissions publicly verifiable on the
-              Verana blockchain.
-            </p>
-          </div>
-        </section>
-
-        {/* ============================================================ */}
         {/* Services                                                     */}
         {/* ============================================================ */}
         <section id="services">
@@ -152,45 +220,20 @@ export default function PlaygroundPage() {
             Services
           </h2>
           <p className="text-gray-600 mb-6">
-            The ecosystem currently includes the following services:
+            This ecosystem includes the following services. Connect to any
+            of them using{" "}
+            <a
+              href="#get-hologram"
+              className="text-violet-600 hover:underline font-medium"
+            >
+              Hologram Messaging
+            </a>
+            .
           </p>
 
-          <div className="space-y-4">
+          <div className="space-y-6">
             {services.map((s) => (
-              <div
-                key={s.name}
-                className="rounded-xl border border-gray-200 bg-white p-5 shadow-sm"
-              >
-                <div className="flex items-start gap-4">
-                  <div
-                    className={`w-10 h-10 rounded-lg flex items-center justify-center shrink-0 ${s.color}`}
-                  >
-                    <s.icon className="w-5 h-5" />
-                  </div>
-                  <div className="flex-1">
-                    <div className="flex items-baseline gap-2 mb-1">
-                      <span className="font-semibold text-gray-900">
-                        {s.name}
-                      </span>
-                      <span className="text-xs text-gray-400 font-medium">
-                        {s.role}
-                      </span>
-                    </div>
-                    <p className="text-sm text-gray-500">{s.desc}</p>
-                    {s.endpoint && (
-                      <a
-                        href={s.endpoint}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="inline-flex items-center gap-1 mt-2 text-sm text-violet-600 hover:underline"
-                      >
-                        <ExternalLink className="w-3.5 h-3.5" />
-                        {s.endpoint.replace("https://", "")}
-                      </a>
-                    )}
-                  </div>
-                </div>
-              </div>
+              <ServiceCard key={s.id} service={s} />
             ))}
           </div>
         </section>
@@ -227,7 +270,10 @@ export default function PlaygroundPage() {
             ))}
           </div>
 
-          <div className="rounded-2xl border border-gray-200 bg-white p-6 shadow-sm">
+          <div
+            id="get-hologram"
+            className="rounded-2xl border border-gray-200 bg-white p-6 shadow-sm"
+          >
             <div className="flex flex-col sm:flex-row items-center gap-6">
               <img
                 src="https://hologram.zone/logo.svg"
@@ -278,11 +324,11 @@ export default function PlaygroundPage() {
           </p>
           <div className="rounded-xl border border-gray-200 bg-gray-900 text-gray-300 p-5 font-mono text-sm leading-relaxed overflow-x-auto">
             <pre>{`hologram-verifiable-services/
-  common/             # Shared shell helpers
-  organization/    # Trust anchor (workflow 1)
-  avatar/             # Credential issuer chatbot (workflow 2)
-  github-agent/       # GitHub AI agent with MCP (workflow 3)
-  playground/         # This landing page (workflow 6)`}</pre>
+  common/               # Shared shell helpers
+  organization/         # Trust anchor (workflow 1)
+  avatar/               # Credential issuer chatbot (workflow 2)
+  github-agent/         # GitHub AI agent with MCP (workflow 3)
+  playground/           # This landing page (workflow 6)`}</pre>
           </div>
           <div className="mt-4">
             <a
@@ -301,7 +347,7 @@ export default function PlaygroundPage() {
       {/* Footer */}
       <footer className="border-t border-gray-200 py-8 text-center text-sm text-gray-400">
         <p>
-          Hologram Avatar &middot; Powered by{" "}
+          Hologram Verifiable Services &middot; Powered by{" "}
           <a
             href="https://hologram.zone"
             className="text-violet-500 hover:underline"
