@@ -8,7 +8,7 @@
 #
 # Deployment target: vs.hologram.zone
 chartSource: oci://registry-1.docker.io/io2060/hologram-generic-ai-agent-chart
-chartVersion: v1.11.0-dev.2
+chartVersion: v1.11.0
 
 global:
   domain: vs.hologram.zone
@@ -49,12 +49,10 @@ postgres:
   env:
     - name: PGDATA
       value: '/var/lib/postgresql/data/pgdata'
-    - name: POSTGRES_PASSWORD
-      value: 'placeholder'
-    - name: POSTGRES_USER
-      value: 'wise_agent_db'
-    - name: POSTGRES_DB
-      value: 'wise-agent'
+  secret:
+    POSTGRES_PASSWORD: 'placeholder'
+    POSTGRES_USER: 'wise_agent_db'
+    POSTGRES_DB: 'wise-agent'
   resources:
     requests:
       cpu: '100m'
@@ -111,12 +109,10 @@ chatbot:
       value: '{{ .Values.credentialDefinitionId | default "" }}'
     - name: WISE_MCP_URL
       value: 'http://wise-agent-mcp-wise.{{ .Release.Namespace }}:14101/mcp/'
-    - name: POSTGRES_PASSWORD
-      value: 'placeholder'
-    - name: POSTGRES_USER
-      value: 'wise_agent_db'
-    - name: POSTGRES_DB_NAME
-      value: 'wise-agent'
+  secret:
+    POSTGRES_PASSWORD: 'placeholder'
+    POSTGRES_USER: 'wise_agent_db'
+    POSTGRES_DB_NAME: 'wise-agent'
   agentPack:
     enabled: true
     name: wise-agent

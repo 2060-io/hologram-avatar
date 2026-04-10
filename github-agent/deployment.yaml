@@ -8,7 +8,7 @@
 #
 # Deployment target: vs.hologram.zone
 chartSource: oci://registry-1.docker.io/io2060/hologram-generic-ai-agent-chart
-chartVersion: v1.11.0-dev.2
+chartVersion: v1.11.0
 
 global:
   domain: vs.hologram.zone
