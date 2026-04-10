@@ -115,7 +115,8 @@ llm:
 rag:
   provider: langchain
   docsPath: /app/rag/docs
-  remoteUrls: []
+  remoteUrls:
+    - https://raw.githubusercontent.com/2060-io/hologram-verifiable-services/main/github-agent/docs/README.md
   vectorStore:
     type: redis
     indexName: github_agent
