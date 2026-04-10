@@ -49,10 +49,12 @@ postgres:
   env:
     - name: PGDATA
       value: '/var/lib/postgresql/data/pgdata'
-  secret:
-    POSTGRES_PASSWORD: 'placeholder'
-    POSTGRES_USER: 'wise_agent_db'
-    POSTGRES_DB: 'wise-agent'
+    - name: POSTGRES_PASSWORD
+      value: 'placeholder'
+    - name: POSTGRES_USER
+      value: 'wise_agent_db'
+    - name: POSTGRES_DB
+      value: 'wise-agent'
   resources:
     requests:
       cpu: '100m'
@@ -109,16 +111,18 @@ chatbot:
       value: '{{ .Values.credentialDefinitionId | default "" }}'
     - name: WISE_MCP_URL
       value: 'http://wise-agent-mcp-wise.{{ .Release.Namespace }}:14101/mcp/'
+    - name: POSTGRES_PASSWORD
+      value: 'placeholder'
+    - name: POSTGRES_USER
+      value: 'wise_agent_db'
+    - name: POSTGRES_DB_NAME
+      value: 'wise-agent'
   agentPack:
     enabled: true
     name: wise-agent
     mountPath: /app/agent-packs/wise-agent
     fileName: agent-pack.yaml
     existingConfigMap: 'wise-agent-agent-pack'
-  secret:
-    POSTGRES_PASSWORD: 'placeholder'
-    POSTGRES_USER: 'wise_agent_db'
-    POSTGRES_DB_NAME: 'wise-agent'
   service:
     type: ClusterIP
     port: 3003
