@@ -1,0 +1,280 @@
+name: 4_ Deploy Wise Agent
+
+on:
+  workflow_dispatch:
+    inputs:
+      step:
+        description: "Which step to run"
+        required: true
+        type: choice
+        options:
+          - deploy
+          - get-credentials
+          - all
+        default: all
+
+jobs:
+  deploy-wise-agent:
+    name: Deploy Wise Agent VS
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Validate branch
+        run: |
+          if [ "${GITHUB_REF_NAME}" != "main" ]; then
+            echo "::error::This workflow can only run on the main branch (current: ${GITHUB_REF_NAME})"
+            exit 1
+          fi
+          echo "NETWORK=testnet" >> "$GITHUB_ENV"
+
+      - name: Load configuration
+        run: |
+          set -a
+          source wise-agent/config.env
+          set +a
+          while IFS= read -r line; do
+            key="${line%%=*}"
+            echo "${key}=${!key}" >> "$GITHUB_ENV"
+          done < <(grep -E '^[A-Z_]+=' wise-agent/config.env)
+
+      - name: Parse deployment.yaml
+        run: |
+          CHART_SOURCE=$(yq '.chartSource' wise-agent/deployment.yaml)
+          CHART_VERSION=$(yq '.chartVersion' wise-agent/deployment.yaml)
+          CHART_NAMESPACE="${{ secrets.K8S_NAMESPACE }}"
+          RELEASE_NAME=$(yq '.nameOverride' wise-agent/deployment.yaml)
+          echo "CHART_SOURCE=${CHART_SOURCE}" >> "$GITHUB_ENV"
+          echo "CHART_VERSION=${CHART_VERSION}" >> "$GITHUB_ENV"
+          echo "CHART_NAMESPACE=${CHART_NAMESPACE}" >> "$GITHUB_ENV"
+          echo "RELEASE_NAME=${RELEASE_NAME}" >> "$GITHUB_ENV"
+
+      - name: Set up kubeconfig
+        run: |
+          mkdir -p ~/.kube
+          cat > ~/.kube/config <<'KUBEEOF'
+          ${{ secrets.OVH_KUBECONFIG }}
+          KUBEEOF
+
+      - name: Install kubectl
+        uses: azure/setup-kubectl@v4
+        with:
+          version: 'v1.29.9'
+
+      - name: Install veranad
+        run: |
+          VERANAD_VERSION="v0.9.4"
+          curl -sfL "https://github.com/verana-labs/verana/releases/download/${VERANAD_VERSION}/veranad-linux-amd64" \
+            -o /usr/local/bin/veranad
+          chmod +x /usr/local/bin/veranad
+          veranad version
+
+      - name: Import account from mnemonic
+        run: |
+          echo "${{ secrets.VS_DEMO_MNEMONIC }}" | veranad keys add "${{ env.USER_ACC }}" --recover --keyring-backend test
+
+      # -----------------------------------------------------------------------
+      # DEPLOY: Install/upgrade via Helm (hologram-generic-ai-agent-chart)
+      # -----------------------------------------------------------------------
+      - name: Create K8s secrets
+        if: inputs.step == 'deploy' || inputs.step == 'all'
+        run: |
+          NAMESPACE="${CHART_NAMESPACE}"
+
+          # VS Agent DB secret
+          VSAGENT_DB_PWD="${{ secrets.WISE_AGENT_VSAGENT_DB_PASSWORD }}"
+          if [ -z "$VSAGENT_DB_PWD" ]; then
+            VSAGENT_DB_PWD="$(openssl rand -hex 16)"
+            echo "::warning::WISE_AGENT_VSAGENT_DB_PASSWORD secret not set — using generated password"
+          fi
+          kubectl create secret generic wise-agent-db-secret \
+            --namespace "$NAMESPACE" \
+            --from-literal=POSTGRES_PASSWORD="$VSAGENT_DB_PWD" \
+            --dry-run=client -o yaml | kubectl apply -f -
+
+      - name: Create agent pack ConfigMap
+        if: inputs.step == 'deploy' || inputs.step == 'all'
+        run: |
+          kubectl create configmap wise-agent-agent-pack \
+            --namespace "$CHART_NAMESPACE" \
+            --from-file=agent-pack.yaml=wise-agent/agent-pack.yaml \
+            --dry-run=client -o yaml | kubectl apply -f -
+
+      - name: Deploy MCP Wise server
+        if: inputs.step == 'deploy' || inputs.step == 'all'
+        run: |
+          NAMESPACE="${CHART_NAMESPACE}"
+          MCP_WISE_IMAGE="io2060/mcp-wise:0.1.2"
+
+          cat <<EOF | kubectl apply -f -
+          apiVersion: apps/v1
+          kind: Deployment
+          metadata:
+            name: wise-agent-mcp-wise
+            namespace: ${NAMESPACE}
+            labels:
+              app: wise-agent-mcp-wise
+          spec:
+            replicas: 1
+            selector:
+              matchLabels:
+                app: wise-agent-mcp-wise
+            template:
+              metadata:
+                labels:
+                  app: wise-agent-mcp-wise
+              spec:
+                containers:
+                  - name: mcp-wise
+                    image: ${MCP_WISE_IMAGE}
+                    ports:
+                      - containerPort: 14101
+                    env:
+                      - name: MODE
+                        value: "http"
+                      - name: WISE_IS_SANDBOX
+                        value: "${{ secrets.WISE_IS_SANDBOX || 'true' }}"
+                    resources:
+                      requests:
+                        cpu: 100m
+                        memory: 128Mi
+                      limits:
+                        cpu: 500m
+                        memory: 256Mi
+          ---
+          apiVersion: v1
+          kind: Service
+          metadata:
+            name: wise-agent-mcp-wise
+            namespace: ${NAMESPACE}
+          spec:
+            selector:
+              app: wise-agent-mcp-wise
+            ports:
+              - port: 14101
+                targetPort: 14101
+            type: ClusterIP
+          EOF
+
+          # Restart to pick up latest image
+          kubectl rollout restart deployment/wise-agent-mcp-wise -n "$NAMESPACE"
+          kubectl rollout status deployment/wise-agent-mcp-wise -n "$NAMESPACE" --timeout=120s
+
+      - name: Deploy via Helm
+        if: inputs.step == 'deploy' || inputs.step == 'all'
+        run: |
+          # Strip chart metadata before passing to Helm
+          yq 'del(.chartSource, .chartVersion)' wise-agent/deployment.yaml > /tmp/helm-values.yaml
+
+          # Inject credential definition ID from config.env
+          export CREDENTIAL_DEFINITION_ID
+          yq -i '.credentialDefinitionId = env(CREDENTIAL_DEFINITION_ID)' /tmp/helm-values.yaml
+
+          helm upgrade --install "$RELEASE_NAME" "$CHART_SOURCE" \
+            --version "$CHART_VERSION" \
+            --namespace "$CHART_NAMESPACE" --create-namespace \
+            --values /tmp/helm-values.yaml \
+            --set chatbot.secret.OPENAI_API_KEY="${{ secrets.WISE_AGENT_OPENAI_API_KEY }}" \
+            --set chatbot.secret.POSTGRES_PASSWORD="${{ secrets.WISE_AGENT_POSTGRES_PASSWORD }}" \
+            --set postgres.secret.POSTGRES_PASSWORD="${{ secrets.WISE_AGENT_POSTGRES_PASSWORD }}" \
+            --set vs-agent-chart.extraEnv[0].name=AGENT_WALLET_ID \
+            --set vs-agent-chart.extraEnv[0].value="Wise Agent Avatar" \
+            --set vs-agent-chart.extraEnv[1].name=AGENT_WALLET_KEY \
+            --set vs-agent-chart.extraEnv[1].value="${{ secrets.WISE_AGENT_WALLET_KEY }}" \
+            --wait --timeout 300s
+
+      - name: Restart chatbot to pick up ConfigMap changes
+        if: inputs.step == 'deploy' || inputs.step == 'all'
+        run: |
+          kubectl rollout restart statefulset/wise-agent-chart-chatbot -n "$CHART_NAMESPACE"
+          kubectl rollout status statefulset/wise-agent-chart-chatbot -n "$CHART_NAMESPACE" --timeout=120s
+
+      - name: Verify MCP Wise connectivity
+        if: inputs.step == 'deploy' || inputs.step == 'all'
+        run: |
+          echo "Checking MCP Wise service is reachable..."
+          kubectl run mcp-wise-check --rm -i --restart=Never -n "$CHART_NAMESPACE" \
+            --image=curlimages/curl:latest -- \
+            curl -sf -o /dev/null -w "%{http_code}" \
+            "http://wise-agent-mcp-wise:14101/mcp/" || echo "::warning::MCP Wise health check returned non-200 (may need POST)"
+
+      # -----------------------------------------------------------------------
+      # GET-CREDENTIALS: Obtain Service credential from organization
+      # -----------------------------------------------------------------------
+      - name: Port-forward Wise Agent VS Agent
+        if: inputs.step == 'get-credentials' || inputs.step == 'all'
+        run: |
+          # The vs-agent service name inside the chart
+          kubectl port-forward -n "$CHART_NAMESPACE" "svc/wise-agent" 3002:3000 &
+          echo "CHILD_PF_PID=$!" >> "$GITHUB_ENV"
+          sleep 5
+          curl -sf http://localhost:3002/v1/agent > /dev/null || {
+            echo "::error::Port-forward to Wise Agent VS-Agent failed"
+            exit 1
+          }
+          echo "Port-forward to Wise Agent VS-Agent on :3002"
+
+      - name: Port-forward organization Agent
+        if: inputs.step == 'get-credentials' || inputs.step == 'all'
+        run: |
+          kubectl port-forward -n "$CHART_NAMESPACE" "svc/organization" 3000:3000 &
+          echo "ORG_PF_PID=$!" >> "$GITHUB_ENV"
+          sleep 5
+          curl -sf http://localhost:3000/v1/agent > /dev/null || {
+            echo "::error::Port-forward to organization-Agent failed"
+            exit 1
+          }
+          echo "Port-forward to organization-Agent on :3000"
+
+      - name: Get Service credential
+        if: inputs.step == 'get-credentials' || inputs.step == 'all'
+        run: |
+          ORG_ADMIN_API="http://localhost:3000"
+          CHILD_ADMIN_API="http://localhost:3002"
+          source common/common.sh
+          set_network_vars "$NETWORK"
+
+          CHILD_DID=$(curl -sf "${CHILD_ADMIN_API}/v1/agent" | jq -r '.publicDid')
+          echo "Wise Agent DID: $CHILD_DID"
+
+          CHILD_PUBLIC_URL="https://wise-agent.vs.hologram.zone"
+          if has_linked_vp "$CHILD_PUBLIC_URL" "service"; then
+            ok "Service credential already linked — skipping"
+          else
+            SERVICE_VTJSC_OUTPUT=$(discover_ecs_vtjsc "$ECS_TR_PUBLIC_URL" "service")
+            SERVICE_JSC_URL=$(echo "$SERVICE_VTJSC_OUTPUT" | sed -n '1p')
+
+            download_logo_data_uri "$SERVICE_LOGO_URL" > /tmp/service_logo_data_uri
+
+            SERVICE_CLAIMS=$(jq -n \
+              --rawfile logo /tmp/service_logo_data_uri \
+              --arg id "$CHILD_DID" \
+              --arg name "$SERVICE_NAME" \
+              --arg type "${SERVICE_TYPE:-AIAgent}" \
+              --arg desc "$SERVICE_DESCRIPTION" \
+              --argjson age "${SERVICE_MIN_AGE:-0}" \
+              --arg terms "${SERVICE_TERMS:-}" \
+              --arg privacy "${SERVICE_PRIVACY:-}" \
+              '{id: $id, name: $name, type: $type, description: $desc, logo: ($logo | rtrimstr("\n")), minimumAgeRequired: $age, termsAndConditions: $terms, privacyPolicy: $privacy}')
+
+            issue_remote_and_link "$ORG_ADMIN_API" "$CHILD_ADMIN_API" "service" "$SERVICE_JSC_URL" "$CHILD_DID" "$SERVICE_CLAIMS"
+          fi
+
+      # -----------------------------------------------------------------------
+      # CLEANUP
+      # -----------------------------------------------------------------------
+      - name: Stop port-forwards
+        if: always()
+        run: |
+          [ -n "${CHILD_PF_PID:-}" ] && kill "$CHILD_PF_PID" 2>/dev/null || true
+          [ -n "${ORG_PF_PID:-}" ] && kill "$ORG_PF_PID" 2>/dev/null || true
+
+      - name: Summary
+        if: always()
+        run: |
+          echo "## Wise Agent VS" >> "$GITHUB_STEP_SUMMARY"
+          echo "" >> "$GITHUB_STEP_SUMMARY"
+          echo "- **VS Agent:** https://wise-agent.vs.hologram.zone/.well-known/did.json" >> "$GITHUB_STEP_SUMMARY"
+          echo "- **Network:** testnet" >> "$GITHUB_STEP_SUMMARY"
+          echo "- **Chart:** ${CHART_SOURCE}:${CHART_VERSION}" >> "$GITHUB_STEP_SUMMARY"

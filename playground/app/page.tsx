@@ -45,6 +45,15 @@ const services = [
     borderColor: "border-gray-200",
     endpoint: "https://github-agent.vs.hologram.zone",
   },
+  {
+    id: "wise-agent",
+    name: "Wise Agent",
+    role: "AI Agent with MCP",
+    desc: "An AI-powered Wise assistant that uses the Model Context Protocol (MCP) to interact with your Wise account. Check balances, view exchange rates, list transfers, send money, create invoices, and manage recipients — all through an encrypted DIDComm chat in Hologram Messaging. To get started: first authenticate using the credential you received from the Avatar service, then open the contextual menu, select \"MCP Server Config\", and enter your Wise API Token. Once configured, the agent can access Wise tools on your behalf.",
+    logoUrl: "https://hologram.zone/images/wise.svg",
+    borderColor: "border-green-200",
+    endpoint: "https://wise-agent.vs.hologram.zone",
+  },
 ];
 
 const steps = [
@@ -326,6 +335,7 @@ export default function PlaygroundPage() {
   organization/         # Trust anchor (workflow 1)
   avatar/               # Credential issuer chatbot (workflow 2)
   github-agent/         # GitHub AI agent with MCP (workflow 3)
+  wise-agent/           # Wise AI agent with MCP (workflow 4)
   playground/           # This landing page (workflow 6)`}</pre>
           </div>
           <div className="mt-4">
