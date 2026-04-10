@@ -63,7 +63,7 @@ services:
       - postgres-data:/var/lib/postgresql/data
 
   mcp-wise:
-    image: ${MCP_WISE_IMAGE:-io2060/mcp-wise:0.1.2}
+    image: ${MCP_WISE_IMAGE:-io2060/mcp-wise:0.1.3}
     platform: linux/amd64
     ports:
       - "${MCP_WISE_PORT:-14101}:14101"
