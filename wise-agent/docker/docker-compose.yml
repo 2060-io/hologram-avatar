@@ -13,7 +13,6 @@
 #   - Docker and Docker Compose installed
 #   - ngrok running on port 3021
 #   - OPENAI_API_KEY set in environment
-#   - WISE_API_TOKEN set in environment
 #
 # Usage:
 #   source wise-agent/config.env
@@ -69,7 +68,6 @@ services:
     ports:
       - "${MCP_WISE_PORT:-14101}:14101"
     environment:
-      - WISE_API_TOKEN=${WISE_API_TOKEN}
       - WISE_IS_SANDBOX=${WISE_IS_SANDBOX:-true}
       - MODE=http
 

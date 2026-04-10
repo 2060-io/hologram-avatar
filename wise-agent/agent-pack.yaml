@@ -149,13 +149,33 @@ flows:
         labelKey: LOGOUT
         action: logout
         visibleWhen: authenticated
+      - id: mcp-config
+        labelKey: MCP_CONFIG_MENU
+        action: mcp-config
+        visibleWhen: notConfiguring
+      - id: abort-config
+        labelKey: MCP_CONFIG_ABORT
+        action: abort-config
+        visibleWhen: configuring
 
 mcp:
   servers:
     - name: wise
       transport: streamable-http
       url: ${WISE_MCP_URL}
-      accessMode: public
+      headers:
+        Authorization: "Bearer ${WISE_API_TOKEN}"
+      accessMode: user-controlled
+      userConfig:
+        fields:
+          - name: token
+            type: secret
+            label:
+              en: "Please enter your Wise API Token:"
+              es: "Por favor, ingresa tu Token de API de Wise:"
+              fr: "Veuillez entrer votre jeton d'API Wise :"
+              pt: "Por favor, insira seu Token de API do Wise:"
+            headerTemplate: "Bearer {value}"
       toolAccess:
         default: public
 

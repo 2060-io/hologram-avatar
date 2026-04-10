@@ -41,10 +41,6 @@ if [ -z "${OPENAI_API_KEY:-}" ]; then
   echo "WARNING: OPENAI_API_KEY is not set. The chatbot LLM will not work."
 fi
 
-if [ -z "${WISE_API_TOKEN:-}" ]; then
-  echo "WARNING: WISE_API_TOKEN is not set. The MCP Wise server will not work."
-fi
-
 if [ -z "${NGROK_DOMAIN:-}" ]; then
   echo "WARNING: NGROK_DOMAIN is not set. Run setup.sh first or set it manually."
 fi

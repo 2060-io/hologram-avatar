@@ -133,11 +133,6 @@ jobs:
                     env:
                       - name: MODE
                         value: "http"
-                      - name: WISE_API_TOKEN
-                        valueFrom:
-                          secretKeyRef:
-                            name: wise-agent-mcp-wise-secret
-                            key: WISE_API_TOKEN
                       - name: WISE_IS_SANDBOX
                         value: "${{ secrets.WISE_IS_SANDBOX || 'true' }}"
                     resources:
@@ -162,13 +157,7 @@ jobs:
             type: ClusterIP
           EOF
 
-          # Create/update the secret with the Wise API token
-          kubectl create secret generic wise-agent-mcp-wise-secret \
-            --namespace "$NAMESPACE" \
-            --from-literal=WISE_API_TOKEN="${{ secrets.WISE_AGENT_API_TOKEN }}" \
-            --dry-run=client -o yaml | kubectl apply -f -
-
-          # Restart to pick up latest image and secret
+          # Restart to pick up latest image
           kubectl rollout restart deployment/wise-agent-mcp-wise -n "$NAMESPACE"
           kubectl rollout status deployment/wise-agent-mcp-wise -n "$NAMESPACE" --timeout=120s
 
