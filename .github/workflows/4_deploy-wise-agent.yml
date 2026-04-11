@@ -105,7 +105,7 @@ jobs:
         if: inputs.step == 'deploy' || inputs.step == 'all'
         run: |
           NAMESPACE="${CHART_NAMESPACE}"
-          MCP_WISE_IMAGE="io2060/mcp-wise:0.2.0"
+          MCP_WISE_IMAGE="io2060/mcp-wise:0.3.0"
 
           cat <<EOF | kubectl apply -f -
           apiVersion: apps/v1
