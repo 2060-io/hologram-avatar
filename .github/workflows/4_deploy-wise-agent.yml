@@ -105,7 +105,7 @@ jobs:
         if: inputs.step == 'deploy' || inputs.step == 'all'
         run: |
           NAMESPACE="${CHART_NAMESPACE}"
-          MCP_WISE_IMAGE="io2060/mcp-wise:0.1.7"
+          MCP_WISE_IMAGE="io2060/mcp-wise:0.2.0"
 
           cat <<EOF | kubectl apply -f -
           apiVersion: apps/v1
@@ -135,6 +135,8 @@ jobs:
                         value: "http"
                       - name: WISE_IS_SANDBOX
                         value: "${{ secrets.WISE_IS_SANDBOX || 'true' }}"
+                      - name: WISE_ALLOWED_PROFILES
+                        value: "${{ secrets.WISE_ALLOWED_PROFILES || 'personal' }}"
                     resources:
                       requests:
                         cpu: 100m
