@@ -37,7 +37,14 @@ jobs:
           set +a
           while IFS= read -r line; do
             key="${line%%=*}"
-            echo "${key}=${!key}" >> "$GITHUB_ENV"
+            val="${!key}"
+            if [[ "$val" == *$'\n'* ]]; then
+              echo "${key}<<ENVEOF" >> "$GITHUB_ENV"
+              echo "$val" >> "$GITHUB_ENV"
+              echo "ENVEOF" >> "$GITHUB_ENV"
+            else
+              echo "${key}=${val}" >> "$GITHUB_ENV"
+            fi
           done < <(grep -E '^[A-Z_]+=' organization/config.env)
 
       - name: Parse deployment.yaml
