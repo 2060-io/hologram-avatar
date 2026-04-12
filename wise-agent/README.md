@@ -27,7 +27,7 @@ Access is restricted by profile **type** (e.g., `personal`, `business`).
 
 ```yaml
 mcp-wise:
-  image: io2060/mcp-wise:0.4.0
+  image: io2060/mcp-wise:latest
   ports:
     - "14101:14101"
   environment:
@@ -81,7 +81,7 @@ Use the `list_profiles` MCP tool to discover profile IDs, then set `WISE_ALLOWED
 
 ```yaml
 mcp-wise:
-  image: io2060/mcp-wise:0.4.0
+  image: io2060/mcp-wise:latest
   ports:
     - "14101:14101"
   environment:
