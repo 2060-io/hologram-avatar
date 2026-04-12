@@ -1,0 +1,97 @@
+{
+  "$id": "vpr:verana:vna-testnet-1/cs/v1/js/18",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "description": "An passport credential schema for decentralized service identification.",
+  "properties": {
+    "credentialSubject": {
+      "properties": {
+        "birthDate": {
+          "type": "string"
+        },
+        "credentialIssuanceDate": {
+          "type": "string"
+        },
+        "documentExpirationDate": {
+          "type": "string"
+        },
+        "documentIssuingState": {
+          "description": "Country or state that issued the document (ISO 3166-1 alpha-2 code).",
+          "maxLength": 2,
+          "minLength": 2,
+          "type": "string"
+        },
+        "documentNumber": {
+          "description": "Unique number identifying the document.",
+          "maxLength": 64,
+          "minLength": 1,
+          "type": "string"
+        },
+        "documentType": {
+          "description": "Type of the identification document (e.g., Passport, ID Card, Driver License).",
+          "maxLength": 128,
+          "minLength": 1,
+          "type": "string"
+        },
+        "facePhoto": {
+          "format": "uri",
+          "pattern": "^data:image/(png|jpeg|svg\\+xml);base64,",
+          "description": "Base64-encoded facial photograph of the holder.",
+          "type": "string"
+        },
+
+        "firstName": {
+          "description": "Holder’s first or given name.",
+          "maxLength": 128,
+          "minLength": 1,
+          "type": "string"
+        },
+        "lastName": {
+          "description": "Holder’s last or family name.",
+          "maxLength": 128,
+          "minLength": 1,
+          "type": "string"
+        },
+        "mrzData": {
+          "description": "Machine Readable Zone (MRZ) data as encoded in the document.",
+          "maxLength": 256,
+          "minLength": 0,
+          "type": "string"
+        },
+        "nationality": {
+          "description": "Nationality of the holder (ISO 3166-1 alpha-2 code).",
+          "maxLength": 2,
+          "minLength": 2,
+          "type": "string"
+        },
+        "sex": {
+          "description": "Holder’s sex or gender as shown on the document.",
+          "enum": [
+            "M",
+            "F",
+            "X",
+            "Other",
+            "Unspecified"
+          ],
+          "type": "string"
+        }
+      },
+      "required": [
+        "documentType",
+        "documentNumber",
+        "documentIssuingState",
+        "firstName",
+        "lastName",
+        "sex",
+        "birthDate",
+        "nationality",
+        "credentialIssuanceDate",
+        "documentExpirationDate",
+        "facePhoto",
+        "mrzData"
+      ],
+      "type": "object"
+    }
+  },
+  "title": "Passport Credential",
+  "type": "object"
+}
