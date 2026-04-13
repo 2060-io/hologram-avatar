@@ -26,7 +26,7 @@ source "$SERVICE_DIR/config.env"
 # Defaults (can be overridden by env)
 VS_AGENT_ADMIN_URL="${VS_AGENT_ADMIN_URL:-http://localhost:${VS_AGENT_ADMIN_PORT:-3004}}"
 CHATBOT_PORT="${CHATBOT_PORT:-2903}"
-CHATBOT_IMAGE="${CHATBOT_IMAGE:-io2060/hologram-gov-id-issuer-app:v1.4.3}"
+CHATBOT_IMAGE="${CHATBOT_IMAGE:-io2060/hologram-gov-id-issuer-app:v1.4.4-dev.1}"
 
 echo "============================================="
 echo " Passport Issuer — Local Start"

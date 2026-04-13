@@ -233,7 +233,7 @@ jobs:
         run: |
           NAMESPACE="${CHART_NAMESPACE}"
           APP_NAME="passport-issuer-app"
-          IMAGE="${CHATBOT_IMAGE:-io2060/hologram-gov-id-issuer-app:v1.4.3}"
+          IMAGE="${CHATBOT_IMAGE:-io2060/hologram-gov-id-issuer-app:v1.4.4-dev.1}"
           PORT="${CHATBOT_PORT:-2903}"
 
           DB_NAME="passport-issuer-db"
@@ -423,4 +423,4 @@ jobs:
             echo "- **VS Agent:** https://${INGRESS_HOST}/.well-known/did.json" >> "$GITHUB_STEP_SUMMARY"
           fi
           echo "- **Network:** testnet" >> "$GITHUB_STEP_SUMMARY"
-          echo "- **Chatbot Image:** ${CHATBOT_IMAGE:-io2060/hologram-gov-id-issuer-app:v1.4.3}" >> "$GITHUB_STEP_SUMMARY"
+          echo "- **Chatbot Image:** ${CHATBOT_IMAGE:-io2060/hologram-gov-id-issuer-app:v1.4.4-dev.1}" >> "$GITHUB_STEP_SUMMARY"

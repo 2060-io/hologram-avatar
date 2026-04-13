@@ -38,7 +38,7 @@ services:
       - redis
 
   passport-issuer:
-    image: ${CHATBOT_IMAGE:-io2060/hologram-gov-id-issuer-app:v1.4.3}
+    image: ${CHATBOT_IMAGE:-io2060/hologram-gov-id-issuer-app:v1.4.4-dev.1}
     platform: linux/amd64
     ports:
       - "${CHATBOT_PORT:-2903}:${CHATBOT_PORT:-2903}"
