@@ -34,7 +34,7 @@
         },
         "facePhoto": {
           "format": "uri",
-          "pattern": "^data:image/(png|jpeg|svg\\+xml);base64,",
+          "pattern": "^data:image/(png|jpeg|jp2|svg\\+xml);base64,",
           "description": "Base64-encoded facial photograph of the holder.",
           "type": "string"
         },
