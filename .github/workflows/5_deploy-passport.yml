@@ -251,7 +251,7 @@ jobs:
 
           # Credential schema ID — discovered from the passport VTJSC on the
           # organization agent. The chatbot uses this to know which schema to issue.
-          CREDENTIAL_SCHEMA_URL="https://${INGRESS_HOST}/vt/schemas-passport-jsc.json"
+          CREDENTIAL_SCHEMA_URL="https://organization.vs.hologram.zone/vt/schemas-passport-jsc.json"
 
           cat <<EOF | kubectl apply -f -
           apiVersion: v1
