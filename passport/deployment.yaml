@@ -33,6 +33,8 @@ ingress:
     whitelistSourceRange: ""
     tlsSecret: ""
     host: ""
+chatbot:
+  host: "passport-app.vs.hologram.zone"
 
 database:
   enabled: true

@@ -47,11 +47,13 @@ jobs:
           CHART_NAMESPACE="${{ secrets.K8S_NAMESPACE }}"
           RELEASE_NAME=$(yq '.name' passport/deployment.yaml)
           INGRESS_HOST=$(yq '.ingress.host' passport/deployment.yaml)
+          CHATBOT_HOST=$(yq '.chatbot.host' passport/deployment.yaml)
           echo "CHART_SOURCE=${CHART_SOURCE}" >> "$GITHUB_ENV"
           echo "CHART_VERSION=${CHART_VERSION}" >> "$GITHUB_ENV"
           echo "CHART_NAMESPACE=${CHART_NAMESPACE}" >> "$GITHUB_ENV"
           echo "RELEASE_NAME=${RELEASE_NAME}" >> "$GITHUB_ENV"
           echo "INGRESS_HOST=${INGRESS_HOST}" >> "$GITHUB_ENV"
+          echo "CHATBOT_HOST=${CHATBOT_HOST}" >> "$GITHUB_ENV"
 
       - name: Set up kubeconfig
         run: |
@@ -366,7 +368,7 @@ jobs:
                       - name: WEBRTC_SERVER_URL
                         value: "${WEBRTC_SVC_URL}"
                       - name: PUBLIC_BASE_URL
-                        value: "https://${INGRESS_HOST}"
+                        value: "https://${CHATBOT_HOST}"
                       - name: ID_VERIFICATION_TIMEOUT_SECONDS
                         value: "${ID_VERIFICATION_TIMEOUT_SECONDS:-900}"
                       - name: CREDENTIAL_SCHEMA_ID
@@ -401,6 +403,32 @@ jobs:
             ports:
               - port: ${PORT}
                 targetPort: ${PORT}
+          ---
+          apiVersion: networking.k8s.io/v1
+          kind: Ingress
+          metadata:
+            name: ${APP_NAME}
+            namespace: ${NAMESPACE}
+            annotations:
+              cert-manager.io/cluster-issuer: letsencrypt-prod
+              nginx.ingress.kubernetes.io/enable-cors: "true"
+          spec:
+            ingressClassName: nginx
+            tls:
+              - hosts:
+                  - ${CHATBOT_HOST}
+                secretName: ${APP_NAME}-tls
+            rules:
+              - host: ${CHATBOT_HOST}
+                http:
+                  paths:
+                    - path: /
+                      pathType: Prefix
+                      backend:
+                        service:
+                          name: ${APP_NAME}
+                          port:
+                            number: ${PORT}
           EOF
 
           kubectl rollout status deployment/"${APP_NAME}" -n "$NAMESPACE" --timeout=300s
@@ -421,6 +449,9 @@ jobs:
           echo "" >> "$GITHUB_STEP_SUMMARY"
           if [ -n "${INGRESS_HOST:-}" ]; then
             echo "- **VS Agent:** https://${INGRESS_HOST}/.well-known/did.json" >> "$GITHUB_STEP_SUMMARY"
+          fi
+          if [ -n "${CHATBOT_HOST:-}" ]; then
+            echo "- **Chatbot App:** https://${CHATBOT_HOST}" >> "$GITHUB_STEP_SUMMARY"
           fi
           echo "- **Network:** testnet" >> "$GITHUB_STEP_SUMMARY"
           echo "- **Chatbot Image:** ${CHATBOT_IMAGE:-io2060/hologram-gov-id-issuer-app:v1.4.4-dev.1}" >> "$GITHUB_STEP_SUMMARY"
