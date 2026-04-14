@@ -37,6 +37,15 @@ const services = [
     endpoint: "https://avatar.vs.hologram.zone",
   },
   {
+    id: "passport",
+    name: "Passport Issuer",
+    role: "Credential Issuer (NFC + Liveness)",
+    desc: "A credential issuer that reads NFC data from government-issued identity documents (passports, ID cards) and verifies the holder's identity via a liveness check with video call and gesture detection. Once verified, it issues a passport credential as a W3C Verifiable Credential backed by the Verana Trust Registry.",
+    logoUrl: "https://hologram.zone/images/passport.jpg",
+    borderColor: "border-blue-200",
+    endpoint: "https://passport.vs.hologram.zone",
+  },
+  {
     id: "github-agent",
     name: "GitHub Agent",
     role: "AI Agent with MCP",
@@ -336,6 +345,7 @@ export default function PlaygroundPage() {
   avatar/               # Credential issuer chatbot (workflow 2)
   github-agent/         # GitHub AI agent with MCP (workflow 3)
   wise-agent/           # Wise AI agent with MCP (workflow 4)
+  passport/             # Passport credential issuer (workflow 5)
   playground/           # This landing page (workflow 6)`}</pre>
           </div>
           <div className="mt-4">

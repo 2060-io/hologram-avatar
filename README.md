@@ -9,8 +9,10 @@ A collection of Verifiable Services (VS) deployed via GitHub Actions to Kubernet
 ```
 organization   ← Trust anchor (ECS credentials, Trust Registry, schema)
 ├── avatar        ← Issues credentials via DIDComm chatbot
+├── passport      ← Passport credential issuer (NFC + liveness)
 ├── github-agent  ← AI-powered GitHub assistant with MCP integration
-└── wise-agent    ← AI-powered Wise assistant with MCP integration
+├── wise-agent    ← AI-powered Wise assistant with MCP integration
+└── playground    ← Landing page (vs.hologram.zone)
 ```
 
 **organization** is the trust anchor: it obtains Organization + Service credentials from the ECS Trust Registry, creates its own Trust Registry with a custom schema, and registers an AnonCreds credential definition.
@@ -23,6 +25,7 @@ Child services obtain a **Service credential** from organization, making their i
 |---------|------|---------|-------|
 | `organization` | Trust anchor | `organization.vs.hologram.zone` | `vs-agent-chart` |
 | `avatar` | Credential issuer (chatbot) | `avatar.vs.hologram.zone` | `vs-agent-chart` |
+| `passport` | Credential issuer (NFC + liveness) | `passport.vs.hologram.zone` | `vs-agent-chart` |
 | `github-agent` | AI agent + MCP | `github-agent.vs.hologram.zone` | `hologram-generic-ai-agent-chart` |
 | `wise-agent` | AI agent + MCP | `wise-agent.vs.hologram.zone` | `hologram-generic-ai-agent-chart` |
 | `playground` | Landing page | `vs.hologram.zone` | — (raw K8s) |
@@ -36,6 +39,7 @@ hologram-verifiable-services/
   avatar/               # Credential issuer chatbot (workflow 2)
   github-agent/         # GitHub AI agent with MCP (workflow 3)
   wise-agent/           # Wise AI agent with MCP (workflow 4)
+  passport/             # Passport credential issuer (workflow 5)
   playground/           # Landing page (workflow 6)
 ```
 
@@ -63,6 +67,7 @@ Workflows are numbered to indicate deployment order. **Run them in order** when 
 | 2 | Deploy Avatar | `deploy` · `get-credentials` · `deploy-chatbot` · `all` |
 | 3 | Deploy GitHub Agent | `deploy` · `get-credentials` · `all` |
 | 4 | Deploy Wise Agent | `deploy` · `get-credentials` · `all` |
+| 5 | Deploy Passport | `deploy` · `get-credentials` · `deploy-chatbot` · `all` |
 | 6 | Deploy Playground | — (triggered on push to main) |
 
 ### Deployment
@@ -76,6 +81,7 @@ All services are deployed under the `vs.hologram.zone` domain:
 
 - `organization.vs.hologram.zone` — Organization Agent
 - `avatar.vs.hologram.zone` — Avatar VS Agent + Chatbot
+- `passport.vs.hologram.zone` — Passport Issuer VS Agent + Chatbot
 - `github-agent.vs.hologram.zone` — GitHub Agent VS Agent + Chatbot
 - `wise-agent.vs.hologram.zone` — Wise Agent VS Agent + Chatbot
 - `vs.hologram.zone` — Playground landing page
@@ -112,6 +118,14 @@ source github-agent/config.env
 export OPENAI_API_KEY=sk-...
 ./github-agent/scripts/setup.sh
 ./github-agent/scripts/start.sh
+```
+
+**Passport Issuer (credential issuer):**
+
+```bash
+source passport/config.env
+./passport/scripts/setup.sh
+./passport/scripts/start.sh
 ```
 
 **Wise Agent (AI agent):**
