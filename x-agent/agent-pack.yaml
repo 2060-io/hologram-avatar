@@ -127,6 +127,21 @@ flows:
         action: logout
         visibleWhen: authenticated
 
+speechToText:
+  requireAuth: false
+  provider:
+    name: whisper
+    type: openai-whisper
+    model: whisper-1
+
+imageGeneration:
+  providers:
+    - name: dalle
+      type: openai-dalle
+      model: dall-e-3
+      # Uses OPENAI_API_KEY by default; set apiKeyEnv to override
+      defaultSize: 1024x1024
+
 mcp:
   servers:
     - name: x-twitter
