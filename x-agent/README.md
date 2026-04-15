@@ -9,7 +9,7 @@ It uses [x-autonomous-mcp](https://github.com/2060-io/x-autonomous-mcp) as its M
 The X Agent runs as a "corporate mode" service — a single X account is configured by the operator. Users interact with the agent through Hologram Messaging to compose, review, and publish posts on the configured X account.
 
 ```
-User ↔ Hologram App ↔ VS Agent (DIDComm) ↔ Chatbot (LLM) ↔ x-autonomous-mcp (MCP/SSE)
+User ↔ Hologram App ↔ VS Agent (DIDComm) ↔ Chatbot (LLM) ↔ x-autonomous-mcp (MCP/HTTP)
                                                                       ↓
                                                                   X API v2
 ```

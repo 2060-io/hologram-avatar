@@ -130,7 +130,7 @@ flows:
 mcp:
   servers:
     - name: x-twitter
-      transport: sse
+      transport: streamableHttp
       url: ${X_MCP_URL}
       toolAccess:
         default: admin

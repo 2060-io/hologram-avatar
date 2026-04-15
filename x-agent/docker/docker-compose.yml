@@ -109,7 +109,7 @@ services:
       - POSTGRES_PASSWORD=${POSTGRES_PASSWORD:-changeme}
       - POSTGRES_DB_NAME=${POSTGRES_DB:-x-agent}
       - CREDENTIAL_DEFINITION_ID=${CREDENTIAL_DEFINITION_ID}
-      - X_MCP_URL=http://x-mcp:8000/sse
+      - X_MCP_URL=http://x-mcp:8000/mcp
     volumes:
       - chatbot-data:/app/data
       - ../agent-pack.yaml:/app/agent-packs/x-agent/agent-pack.yaml:ro
