@@ -1,0 +1,126 @@
+# =============================================================================
+# X Agent VS — Local Docker Compose
+# =============================================================================
+#
+# Runs the full X Agent stack locally:
+#   - VS Agent (DIDComm, wallet)
+#   - Chatbot (hologram-generic-ai-agent)
+#   - X MCP (x-autonomous-mcp via supergateway)
+#   - Redis (vector store, memory, queues)
+#   - PostgreSQL (session persistence)
+#
+# Prerequisites:
+#   - Docker and Docker Compose installed
+#   - ngrok running on port 3031
+#   - OPENAI_API_KEY set in environment
+#   - X API credentials set in environment or config.env
+#
+# Usage:
+#   source x-agent/config.env
+#   export NGROK_DOMAIN=your-domain.ngrok-free.app
+#   export OPENAI_API_KEY=sk-...
+#   docker compose -f x-agent/docker/docker-compose.yml up
+#
+# =============================================================================
+
+services:
+  vs-agent:
+    image: ${VS_AGENT_IMAGE:-veranalabs/vs-agent:latest}
+    platform: linux/amd64
+    ports:
+      - "${VS_AGENT_ADMIN_PORT:-3030}:3000"
+      - "${VS_AGENT_PUBLIC_PORT:-3031}:3001"
+    environment:
+      - AGENT_PUBLIC_DID=did:webvh:${NGROK_DOMAIN}
+      - AGENT_LABEL=${SERVICE_NAME:-X Agent}
+      - AGENT_INVITATION_IMAGE_URL=${SERVICE_LOGO_URL:-https://hologram.zone/images/x.svg}
+      - ENABLE_PUBLIC_API_SWAGGER=true
+      - EVENTS_BASE_URL=http://chatbot:${CHATBOT_PORT:-3003}
+      - REDIS_HOST=redis
+      - USE_CORS=true
+      - AGENT_LOG_LEVEL=3
+    volumes:
+      - vs-agent-data:/root/.afj
+    depends_on:
+      - redis
+
+  redis:
+    image: redis/redis-stack-server:latest
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis-data:/data
+
+  postgres:
+    image: postgres:16-alpine
+    ports:
+      - "5432:5432"
+    environment:
+      - POSTGRES_DB=${POSTGRES_DB:-x-agent}
+      - POSTGRES_USER=${POSTGRES_USER:-x_agent_db}
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD:-changeme}
+      - PGDATA=/var/lib/postgresql/data/pgdata
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+
+  x-mcp:
+    image: ${X_MCP_IMAGE:-io2060/x-autonomous-mcp:latest}
+    platform: linux/amd64
+    ports:
+      - "${X_MCP_PORT:-8000}:8000"
+    environment:
+      - X_API_KEY=${X_API_KEY}
+      - X_API_SECRET=${X_API_SECRET}
+      - X_ACCESS_TOKEN=${X_ACCESS_TOKEN}
+      - X_ACCESS_TOKEN_SECRET=${X_ACCESS_TOKEN_SECRET}
+      - X_BEARER_TOKEN=${X_BEARER_TOKEN}
+      - X_MCP_MAX_REPLIES=${X_MCP_MAX_REPLIES:-8}
+      - X_MCP_MAX_ORIGINALS=${X_MCP_MAX_ORIGINALS:-10}
+      - X_MCP_MAX_LIKES=${X_MCP_MAX_LIKES:-20}
+      - X_MCP_MAX_RETWEETS=${X_MCP_MAX_RETWEETS:-5}
+      - X_MCP_MAX_FOLLOWS=${X_MCP_MAX_FOLLOWS:-10}
+      - X_MCP_MAX_UNFOLLOWS=${X_MCP_MAX_UNFOLLOWS:-10}
+      - X_MCP_MAX_DELETES=${X_MCP_MAX_DELETES:-5}
+      - X_MCP_TOON=${X_MCP_TOON:-false}
+      - X_MCP_COMPACT=${X_MCP_COMPACT:-true}
+      - X_MCP_DEDUP=${X_MCP_DEDUP:-true}
+
+  chatbot:
+    image: ${CHATBOT_IMAGE:-io2060/hologram-generic-ai-agent-app:latest}
+    platform: linux/amd64
+    ports:
+      - "${CHATBOT_PORT:-3003}:${CHATBOT_PORT:-3003}"
+    environment:
+      - APP_PORT=${CHATBOT_PORT:-3003}
+      - LOG_LEVEL=3
+      - LLM_PROVIDER=${LLM_PROVIDER:-openai}
+      - OPENAI_MODEL=${OPENAI_MODEL:-gpt-5.4-mini}
+      - OPENAI_API_KEY=${OPENAI_API_KEY}
+      - VECTOR_STORE=redis
+      - VECTOR_INDEX_NAME=x_agent
+      - RAG_PROVIDER=langchain
+      - RAG_DOCS_PATH=/app/rag/docs
+      - AGENT_MEMORY_BACKEND=redis
+      - AGENT_MEMORY_WINDOW=20
+      - REDIS_URL=redis://redis:6379
+      - VS_AGENT_ADMIN_URL=http://vs-agent:3000
+      - POSTGRES_HOST=postgres
+      - POSTGRES_USER=${POSTGRES_USER:-x_agent_db}
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD:-changeme}
+      - POSTGRES_DB_NAME=${POSTGRES_DB:-x-agent}
+      - CREDENTIAL_DEFINITION_ID=${CREDENTIAL_DEFINITION_ID}
+      - X_MCP_URL=http://x-mcp:8000/sse
+    volumes:
+      - chatbot-data:/app/data
+      - ../agent-pack.yaml:/app/agent-packs/x-agent/agent-pack.yaml:ro
+    depends_on:
+      - vs-agent
+      - redis
+      - postgres
+      - x-mcp
+
+volumes:
+  vs-agent-data:
+  redis-data:
+  postgres-data:
+  chatbot-data:

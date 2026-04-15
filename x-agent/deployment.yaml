@@ -1,0 +1,176 @@
+# X Agent VS — Helm chart values
+#
+# Uses hologram-generic-ai-agent-chart which bundles:
+#   - Chatbot (with agent pack, LLM, RAG, MCP)
+#   - VS Agent (DIDComm, wallet)
+#   - Redis (vector store, memory, queues)
+#   - PostgreSQL (session persistence)
+#
+# Additionally deploys x-autonomous-mcp as a sidecar via extra manifests.
+#
+# Deployment target: vs.hologram.zone
+chartSource: oci://registry-1.docker.io/io2060/hologram-generic-ai-agent-chart
+chartVersion: v1.11.2
+
+global:
+  domain: vs.hologram.zone
+
+nameOverride: 'x-agent-chart'
+
+# Credential definition ID for user authentication (injected from config.env by workflow)
+credentialDefinitionId: ''
+
+# === Redis ===
+redis:
+  enabled: true
+  port: 6379
+  image:
+    pullPolicy: Always
+  persistence:
+    enabled: true
+    mountPath: /data
+    accessModes:
+      - ReadWriteOnce
+    size: 1Gi
+  resources:
+    requests:
+      cpu: '100m'
+      memory: '128Mi'
+    limits:
+      cpu: '500m'
+      memory: '512Mi'
+  service:
+    type: ClusterIP
+
+# === PostgreSQL ===
+postgres:
+  enabled: true
+  port: 5432
+  image:
+    pullPolicy: Always
+  env:
+    - name: PGDATA
+      value: '/var/lib/postgresql/data/pgdata'
+  secret:
+    POSTGRES_PASSWORD: 'placeholder'
+    POSTGRES_USER: 'x_agent_db'
+    POSTGRES_DB: 'x-agent'
+  resources:
+    requests:
+      cpu: '100m'
+      memory: '128Mi'
+    limits:
+      cpu: '500m'
+      memory: '512Mi'
+  storage:
+    size: 2Gi
+    storageClassName: csi-cinder-high-speed
+  service:
+    type: ClusterIP
+
+# === Chatbot ===
+chatbot:
+  replicas: 1
+  image:
+    pullPolicy: Always
+  resources:
+    requests:
+      cpu: '200m'
+      memory: '256Mi'
+    limits:
+      cpu: '1000m'
+      memory: '512Mi'
+  env:
+    - name: APP_PORT
+      value: '3003'
+    - name: LOG_LEVEL
+      value: '3'
+    - name: LLM_PROVIDER
+      value: 'openai'
+    - name: OPENAI_MODEL
+      value: 'gpt-5.4-mini'
+    - name: VECTOR_STORE
+      value: 'redis'
+    - name: VECTOR_INDEX_NAME
+      value: 'x_agent'
+    - name: RAG_PROVIDER
+      value: 'langchain'
+    - name: RAG_DOCS_PATH
+      value: '/app/rag/docs'
+    - name: AGENT_MEMORY_BACKEND
+      value: 'redis'
+    - name: AGENT_MEMORY_WINDOW
+      value: '20'
+    - name: REDIS_URL
+      value: 'redis://x-agent-chart-redis.{{ .Release.Namespace }}:6379'
+    - name: VS_AGENT_ADMIN_URL
+      value: 'http://x-agent.{{ .Release.Namespace }}:3000'
+    - name: POSTGRES_HOST
+      value: 'x-agent-chart-postgres.{{ .Release.Namespace }}'
+    - name: CREDENTIAL_DEFINITION_ID
+      value: '{{ .Values.credentialDefinitionId | default "" }}'
+    - name: X_MCP_URL
+      value: 'http://x-agent-mcp.{{ .Release.Namespace }}:8000/sse'
+  agentPack:
+    enabled: true
+    name: x-agent
+    mountPath: /app/agent-packs/x-agent
+    fileName: agent-pack.yaml
+    existingConfigMap: 'x-agent-agent-pack'
+  secret:
+    POSTGRES_PASSWORD: 'placeholder'
+    POSTGRES_USER: 'x_agent_db'
+    POSTGRES_DB_NAME: 'x-agent'
+  service:
+    type: ClusterIP
+    port: 3003
+  storage:
+    size: 1Gi
+    storageClassName: csi-cinder-high-speed
+  ingress:
+    enabled: false
+
+# === Stats (disabled) ===
+stats:
+  enabled: false
+
+# === Artemis (disabled) ===
+artemis:
+  enabled: false
+
+# === VS Agent ===
+vs-agent-chart:
+  enabled: true
+  name: x-agent
+  didcommLabel: 'X Agent'
+  didcommInvitationImageUrl: 'https://hologram.zone/images/x.svg'
+  eventsBaseUrl: http://x-agent-chart-chatbot:3003
+  ingress:
+    host: "x-agent.{{ .Values.global.domain }}"
+    tlsSecret: "x-agent.{{ .Values.global.domain }}-cert"
+    public:
+      enableCors: true
+    private:
+      whitelistSourceRange: ""
+      host: ""
+  extraEnv:
+    - name: AGENT_WALLET_ID
+      value: "X Agent Avatar"
+    - name: USE_CORS
+      value: "true"
+    - name: REDIS_HOST
+      value: "x-agent-chart-redis"
+    - name: AGENT_LOG_LEVEL
+      value: "3"
+    - name: SELF_ISSUED_VTC_ORG_TYPE
+      value: "PRIVATE"
+    - name: SELF_ISSUED_VTC_ORG_COUNTRYCODE
+      value: "EE"
+    - name: SELF_ISSUED_VTC_ORG_ADDRESS
+      value: "Ahtri tn 13 10152 Tallinn"
+    - name: SELF_ISSUED_VTC_SERVICE_TYPE
+      value: "AI Agent"
+    - name: SELF_ISSUED_VTC_SERVICE_DESCRIPTION
+      value: "AI agent for publishing and managing posts on X (Twitter)"
+    - name: SELF_ISSUED_VTC_SERVICE_MINIMUMAGEREQUIRED
+      value: "1"
