@@ -110,7 +110,7 @@ chatbot:
     - name: CREDENTIAL_DEFINITION_ID
       value: '{{ .Values.credentialDefinitionId | default "" }}'
     - name: X_MCP_URL
-      value: 'http://x-agent-mcp.{{ .Release.Namespace }}:8000/sse'
+      value: 'http://x-agent-mcp.{{ .Release.Namespace }}:8000/mcp'
   agentPack:
     enabled: true
     name: x-agent
