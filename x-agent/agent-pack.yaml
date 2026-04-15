@@ -111,11 +111,11 @@ flows:
     templateKey: greetingMessage
   authentication:
     enabled: true
+    required: true
     credentialDefinitionId: ${CREDENTIAL_DEFINITION_ID}
-    adminAvatars:
+    userIdentityAttribute: name
+    adminUsers:
       - mj
-      - mjfelis
-      - fafa
   menu:
     items:
       - id: authenticate
@@ -133,7 +133,7 @@ mcp:
       transport: sse
       url: ${X_MCP_URL}
       toolAccess:
-        default: public
+        default: admin
 
 integrations:
   vsAgent:
