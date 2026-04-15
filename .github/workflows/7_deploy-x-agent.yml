@@ -220,6 +220,7 @@ jobs:
             --from-literal=X_BEARER_TOKEN="${{ secrets.X_AGENT_BEARER_TOKEN }}" \
             --dry-run=client -o yaml | kubectl apply -f -
 
+          kubectl rollout restart deployment/x-agent-mcp -n "$NAMESPACE"
           kubectl rollout status deployment/x-agent-mcp -n "$NAMESPACE" --timeout=120s
 
       - name: Deploy via Helm
