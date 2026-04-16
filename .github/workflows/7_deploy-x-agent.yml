@@ -93,6 +93,20 @@ jobs:
             --from-literal=POSTGRES_PASSWORD="$VSAGENT_DB_PWD" \
             --dry-run=client -o yaml | kubectl apply -f -
 
+          # MinIO credentials
+          MINIO_ACCESS_KEY="${{ secrets.X_AGENT_MINIO_ACCESS_KEY }}"
+          MINIO_SECRET_KEY="${{ secrets.X_AGENT_MINIO_SECRET_KEY }}"
+          if [ -z "$MINIO_ACCESS_KEY" ]; then
+            MINIO_ACCESS_KEY="$(openssl rand -hex 12)"
+            echo "::warning::X_AGENT_MINIO_ACCESS_KEY secret not set — using generated key"
+          fi
+          if [ -z "$MINIO_SECRET_KEY" ]; then
+            MINIO_SECRET_KEY="$(openssl rand -hex 16)"
+            echo "::warning::X_AGENT_MINIO_SECRET_KEY secret not set — using generated key"
+          fi
+          echo "MINIO_ACCESS_KEY=${MINIO_ACCESS_KEY}" >> "$GITHUB_ENV"
+          echo "MINIO_SECRET_KEY=${MINIO_SECRET_KEY}" >> "$GITHUB_ENV"
+
       - name: Create agent pack ConfigMap
         if: inputs.step == 'deploy' || inputs.step == 'all'
         run: |
@@ -222,6 +236,120 @@ jobs:
 
           kubectl rollout status deployment/x-agent-mcp -n "$NAMESPACE" --timeout=120s
 
+      - name: Deploy MinIO (image generation media store)
+        if: inputs.step == 'deploy' || inputs.step == 'all'
+        run: |
+          NAMESPACE="${CHART_NAMESPACE}"
+          MINIO_NAME="x-agent-minio"
+          MINIO_BUCKET="image-gen"
+          MINIO_PUBLIC_HOST="media.x-agent.vs.hologram.zone"
+
+          cat <<EOF | kubectl apply -f -
+          apiVersion: apps/v1
+          kind: Deployment
+          metadata:
+            name: ${MINIO_NAME}
+            namespace: ${NAMESPACE}
+            labels:
+              app: ${MINIO_NAME}
+          spec:
+            replicas: 1
+            strategy:
+              type: Recreate
+            selector:
+              matchLabels:
+                app: ${MINIO_NAME}
+            template:
+              metadata:
+                labels:
+                  app: ${MINIO_NAME}
+              spec:
+                containers:
+                  - name: minio
+                    image: minio/minio:latest
+                    args: ["server", "/data", "--console-address", ":9001"]
+                    ports:
+                      - containerPort: 9000
+                      - containerPort: 9001
+                    env:
+                      - name: MINIO_ROOT_USER
+                        value: "${MINIO_ACCESS_KEY}"
+                      - name: MINIO_ROOT_PASSWORD
+                        value: "${MINIO_SECRET_KEY}"
+                      - name: MINIO_BROWSER
+                        value: "off"
+                    volumeMounts:
+                      - name: data
+                        mountPath: /data
+                    resources:
+                      requests:
+                        cpu: 100m
+                        memory: 128Mi
+                      limits:
+                        cpu: 500m
+                        memory: 512Mi
+                volumes:
+                  - name: data
+                    persistentVolumeClaim:
+                      claimName: ${MINIO_NAME}-pvc
+          ---
+          apiVersion: v1
+          kind: PersistentVolumeClaim
+          metadata:
+            name: ${MINIO_NAME}-pvc
+            namespace: ${NAMESPACE}
+          spec:
+            accessModes:
+              - ReadWriteOnce
+            resources:
+              requests:
+                storage: 2Gi
+            storageClassName: csi-cinder-high-speed
+          ---
+          apiVersion: v1
+          kind: Service
+          metadata:
+            name: ${MINIO_NAME}
+            namespace: ${NAMESPACE}
+          spec:
+            selector:
+              app: ${MINIO_NAME}
+            ports:
+              - name: api
+                port: 9000
+                targetPort: 9000
+          ---
+          apiVersion: networking.k8s.io/v1
+          kind: Ingress
+          metadata:
+            name: ${MINIO_NAME}
+            namespace: ${NAMESPACE}
+            annotations:
+              cert-manager.io/cluster-issuer: letsencrypt-prod
+              nginx.ingress.kubernetes.io/proxy-body-size: "50m"
+            labels:
+              app: ${MINIO_NAME}
+          spec:
+            ingressClassName: nginx
+            tls:
+              - hosts:
+                  - ${MINIO_PUBLIC_HOST}
+                secretName: ${MINIO_PUBLIC_HOST}-cert
+            rules:
+              - host: ${MINIO_PUBLIC_HOST}
+                http:
+                  paths:
+                    - path: /
+                      pathType: Prefix
+                      backend:
+                        service:
+                          name: ${MINIO_NAME}
+                          port:
+                            number: 9000
+          EOF
+
+          kubectl rollout status deployment/${MINIO_NAME} -n "$NAMESPACE" --timeout=120s
+
       - name: Deploy via Helm
         if: inputs.step == 'deploy' || inputs.step == 'all'
         run: |
@@ -238,6 +366,8 @@ jobs:
             --values /tmp/helm-values.yaml \
             --set chatbot.secret.OPENAI_API_KEY="${{ secrets.X_AGENT_OPENAI_API_KEY }}" \
             --set chatbot.secret.POSTGRES_PASSWORD="${{ secrets.X_AGENT_POSTGRES_PASSWORD }}" \
+            --set chatbot.secret.MINIO_ACCESS_KEY="${MINIO_ACCESS_KEY}" \
+            --set chatbot.secret.MINIO_SECRET_KEY="${MINIO_SECRET_KEY}" \
             --set postgres.secret.POSTGRES_PASSWORD="${{ secrets.X_AGENT_POSTGRES_PASSWORD }}" \
             --set vs-agent-chart.extraEnv[0].name=AGENT_WALLET_ID \
             --set vs-agent-chart.extraEnv[0].value="X Agent Avatar" \

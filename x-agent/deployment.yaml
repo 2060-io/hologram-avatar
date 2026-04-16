@@ -111,6 +111,16 @@ chatbot:
       value: '{{ .Values.credentialDefinitionId | default "" }}'
     - name: X_MCP_URL
       value: 'http://x-agent-mcp.{{ .Release.Namespace }}:8000/mcp'
+    - name: MINIO_ENDPOINT
+      value: 'x-agent-minio.{{ .Release.Namespace }}'
+    - name: MINIO_PORT
+      value: '9000'
+    - name: MINIO_BUCKET
+      value: 'image-gen'
+    - name: MINIO_USE_SSL
+      value: 'false'
+    - name: MINIO_PUBLIC_URL
+      value: 'https://media.x-agent.{{ .Values.global.domain }}'
   agentPack:
     enabled: true
     name: x-agent
@@ -121,6 +131,8 @@ chatbot:
     POSTGRES_PASSWORD: 'placeholder'
     POSTGRES_USER: 'x_agent_db'
     POSTGRES_DB_NAME: 'x-agent'
+    MINIO_ACCESS_KEY: 'placeholder'
+    MINIO_SECRET_KEY: 'placeholder'
   service:
     type: ClusterIP
     port: 3003

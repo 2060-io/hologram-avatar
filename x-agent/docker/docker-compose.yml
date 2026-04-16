@@ -8,6 +8,7 @@
 #   - X MCP (x-autonomous-mcp via supergateway)
 #   - Redis (vector store, memory, queues)
 #   - PostgreSQL (session persistence)
+#   - MinIO (image generation media store)
 #
 # Prerequisites:
 #   - Docker and Docker Compose installed
@@ -63,6 +64,18 @@ services:
     volumes:
       - postgres-data:/var/lib/postgresql/data
 
+  minio:
+    image: minio/minio:latest
+    command: server /data --console-address ":9001"
+    ports:
+      - "9000:9000"
+      - "9001:9001"
+    environment:
+      - MINIO_ROOT_USER=${MINIO_ACCESS_KEY:-minioadmin}
+      - MINIO_ROOT_PASSWORD=${MINIO_SECRET_KEY:-minioadmin}
+    volumes:
+      - minio-data:/data
+
   x-mcp:
     image: ${X_MCP_IMAGE:-io2060/x-autonomous-mcp:latest}
     platform: linux/amd64
@@ -86,7 +99,7 @@ services:
       - X_MCP_DEDUP=${X_MCP_DEDUP:-true}
 
   chatbot:
-    image: ${CHATBOT_IMAGE:-io2060/hologram-generic-ai-agent-app:v1.12.0}
+    image: ${CHATBOT_IMAGE:-io2060/hologram-generic-ai-agent-app:v1.13.0-dev.4}
     platform: linux/amd64
     ports:
       - "${CHATBOT_PORT:-3003}:${CHATBOT_PORT:-3003}"
@@ -110,6 +123,13 @@ services:
       - POSTGRES_DB_NAME=${POSTGRES_DB:-x-agent}
       - CREDENTIAL_DEFINITION_ID=${CREDENTIAL_DEFINITION_ID}
       - X_MCP_URL=http://x-mcp:8000/mcp
+      - MINIO_ENDPOINT=minio
+      - MINIO_PORT=9000
+      - MINIO_ACCESS_KEY=${MINIO_ACCESS_KEY:-minioadmin}
+      - MINIO_SECRET_KEY=${MINIO_SECRET_KEY:-minioadmin}
+      - MINIO_BUCKET=image-gen
+      - MINIO_USE_SSL=false
+      - MINIO_PUBLIC_URL=http://localhost:9000
       - AGENT_PACK_PATH=/app/agent-packs/x-agent
     volumes:
       - chatbot-data:/app/data
@@ -119,9 +139,11 @@ services:
       - redis
       - postgres
       - x-mcp
+      - minio
 
 volumes:
   vs-agent-data:
   redis-data:
   postgres-data:
+  minio-data:
   chatbot-data:
