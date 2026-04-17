@@ -73,7 +73,7 @@ services:
       - MODE=http
 
   chatbot:
-    image: ${CHATBOT_IMAGE:-io2060/hologram-generic-ai-agent-app:v1.12.0}
+    image: ${CHATBOT_IMAGE:-io2060/hologram-generic-ai-agent-app:v1.13.0-dev.5}
     platform: linux/amd64
     ports:
       - "${CHATBOT_PORT:-3003}:${CHATBOT_PORT:-3003}"
