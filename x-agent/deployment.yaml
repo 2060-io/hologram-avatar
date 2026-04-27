@@ -1,6 +1,6 @@
 # X Agent VS — Helm chart values
 #
-# Uses hologram-generic-ai-agent-chart which bundles:
+# Uses hologram-ai-agent-chart which bundles:
 #   - Chatbot (with agent pack, LLM, RAG, MCP)
 #   - VS Agent (DIDComm, wallet)
 #   - Redis (vector store, memory, queues)
@@ -9,8 +9,8 @@
 # Additionally deploys x-autonomous-mcp as a sidecar via extra manifests.
 #
 # Deployment target: vs.hologram.zone
-chartSource: oci://registry-1.docker.io/io2060/hologram-generic-ai-agent-chart
-chartVersion: v1.13.0-dev
+chartSource: oci://registry-1.docker.io/io2060/hologram-ai-agent-chart
+chartVersion: v1.13.1
 
 global:
   domain: vs.hologram.zone

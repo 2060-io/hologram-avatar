@@ -26,8 +26,8 @@ Child services obtain a **Service credential** from organization, making their i
 | `organization` | Trust anchor | `organization.vs.hologram.zone` | `vs-agent-chart` |
 | `avatar` | Credential issuer (chatbot) | `avatar.vs.hologram.zone` | `vs-agent-chart` |
 | `passport` | Credential issuer (NFC + liveness) | `passport.vs.hologram.zone` | `vs-agent-chart` |
-| `github-agent` | AI agent + MCP | `github-agent.vs.hologram.zone` | `hologram-generic-ai-agent-chart` |
-| `wise-agent` | AI agent + MCP | `wise-agent.vs.hologram.zone` | `hologram-generic-ai-agent-chart` |
+| `github-agent` | AI agent + MCP | `github-agent.vs.hologram.zone` | `hologram-ai-agent-chart` |
+| `wise-agent` | AI agent + MCP | `wise-agent.vs.hologram.zone` | `hologram-ai-agent-chart` |
 | `playground` | Landing page | `vs.hologram.zone` | — (raw K8s) |
 
 ## Directory Structure

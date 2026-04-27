@@ -4,7 +4,7 @@
 #
 # Runs the full Wise Agent stack locally:
 #   - VS Agent (DIDComm, wallet)
-#   - Chatbot (hologram-generic-ai-agent)
+#   - Chatbot (hologram-ai-agent)
 #   - MCP Wise (Wise API MCP server)
 #   - Redis (vector store, memory, queues)
 #   - PostgreSQL (session persistence)
@@ -73,7 +73,7 @@ services:
       - MODE=http
 
   chatbot:
-    image: ${CHATBOT_IMAGE:-io2060/hologram-generic-ai-agent-app:v1.13.0-dev.5}
+    image: ${CHATBOT_IMAGE:-io2060/hologram-ai-agent:v1.13.1}
     platform: linux/amd64
     ports:
       - "${CHATBOT_PORT:-3003}:${CHATBOT_PORT:-3003}"

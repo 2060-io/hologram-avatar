@@ -75,7 +75,7 @@ jobs:
           echo "${{ secrets.VS_DEMO_MNEMONIC }}" | veranad keys add "${{ env.USER_ACC }}" --recover --keyring-backend test
 
       # -----------------------------------------------------------------------
-      # DEPLOY: Install/upgrade via Helm (hologram-generic-ai-agent-chart)
+      # DEPLOY: Install/upgrade via Helm (hologram-ai-agent-chart)
       # -----------------------------------------------------------------------
       - name: Create K8s secrets
         if: inputs.step == 'deploy' || inputs.step == 'all'
